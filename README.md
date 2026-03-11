@@ -52,3 +52,4 @@ Then run `schema.sql` in your database.
 - POST /api/emergency/sos       — SOS broadcast
 - GET  /api/emergency/blood     — Find blood donors
 - WS   /ws/tracking/{bookingId} — Live tracking
+"# heymateApp" 
