@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "HeyMate",
+    "slug": "heymate",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "android", "web"],
+    "splash": {
+      "backgroundColor": "#0D0D1A"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/icon.png",
+      "name": "HeyMate",
+      "shortName": "HeyMate",
+      "description": "One App, Any Task, Any Time",
+      "themeColor": "#FF5722",
+      "backgroundColor": "#0D0D1A"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FF5722"
+      },
+      "package": "com.heymate.app"
+    },
+    "ios": {
+      "bundleIdentifier": "com.heymate.app"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "HeyMate needs your location to find nearby providers."
+        }
+      ]
+    ]
+  }
+}
