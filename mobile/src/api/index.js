@@ -1,9 +1,16 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 
-export const BASE_URL   = 'https://heymatebackend-production.up.railway.app';
-export const API_URL    = BASE_URL + '/api';
-export const SOCKET_URL = BASE_URL;
+// ═══════════════════════════════════════════════════════════
+//  HeyMate — API Configuration
+//  Frontend: https://heymateapp-production.up.railway.app
+//  Backend:  https://heymatebackend-production.up.railway.app
+// ═══════════════════════════════════════════════════════════
+
+export const FRONTEND_URL = 'https://heymateapp-production.up.railway.app';
+export const BASE_URL     = 'https://heymatebackend-production.up.railway.app';
+export const API_URL      = BASE_URL + '/api';
+export const SOCKET_URL   = BASE_URL;
 
 const getToken = async () => {
   if (Platform.OS === 'web') return localStorage.getItem('token');

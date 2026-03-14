@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   TextInput, Alert, ActivityIndicator, Switch, Image,
+  Platform, Linking, Share,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSelector, useDispatch } from 'react-redux';
 import { setUser, logout } from '../store/authSlice';
 import { useLocation } from '../hooks/useLocation';
 import { useAppTheme } from '../context/AppThemeContext';
-import api from '../api/index';
+import api, { FRONTEND_URL } from '../api/index';
 import { SERVICES } from '../constants';
 
 export default function ProfileScreen({ navigation }) {
@@ -291,6 +292,30 @@ export default function ProfileScreen({ navigation }) {
           ))}
         </View>
       )}
+
+      {/* Share App Card */}
+      <View style={{ backgroundColor:c.card, borderRadius:18, marginHorizontal:20, marginBottom:14, padding:16, borderWidth:1, borderColor:c.border }}>
+        <Text style={{ color:c.text, fontWeight:'700', fontSize:14, marginBottom:12 }}>🔗 App Link</Text>
+        <TouchableOpacity
+          onPress={() => {
+            if (Platform.OS === 'web') {
+              navigator.clipboard?.writeText(FRONTEND_URL);
+              Alert.alert('✅ Copied!', 'App link copied to clipboard!\n\n' + FRONTEND_URL);
+            } else {
+              Share.share({ message: 'Use HeyMate — One App, Any Task, Any Time!\n\n' + FRONTEND_URL, url: FRONTEND_URL });
+            }
+          }}
+          style={{ backgroundColor:`${c.primary}15`, borderRadius:12, padding:14, borderWidth:1, borderColor:`${c.primary}33`, marginBottom:10 }}>
+          <Text style={{ color:c.textMuted, fontSize:11, marginBottom:4 }}>🌐 Web App URL</Text>
+          <Text style={{ color:c.primary, fontSize:13, fontWeight:'700' }} numberOfLines={1}>{FRONTEND_URL}</Text>
+          <Text style={{ color:c.textMuted, fontSize:11, marginTop:6 }}>Tap to copy • Share with anyone • Works on all phones</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => Linking.openURL(FRONTEND_URL)}
+          style={{ backgroundColor:`${c.success}15`, borderRadius:12, padding:12, borderWidth:1, borderColor:`${c.success}33`, alignItems:'center' }}>
+          <Text style={{ color:c.success, fontWeight:'700', fontSize:13 }}>🚀 Open in Browser</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Settings */}
       <View style={{ backgroundColor:c.card, borderRadius:18, marginHorizontal:20, marginBottom:14, padding:16, borderWidth:1, borderColor:c.border }}>
