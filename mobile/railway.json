@@ -1,7 +1,7 @@
 {
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm install --legacy-peer-deps && npx expo export --platform web --output-dir dist"
+    "buildCommand": "npm install --legacy-peer-deps && ./node_modules/.bin/expo export --platform web --output-dir dist"
   },
   "deploy": {
     "startCommand": "node server.js",
