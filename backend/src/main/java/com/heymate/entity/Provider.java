@@ -2,7 +2,6 @@ package com.heymate.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.locationtech.jts.geom.Point;
 import java.time.LocalDateTime;
 
 @Entity
@@ -23,8 +22,9 @@ public class Provider {
     private String description;
     private boolean isOnline = false;
 
-    @Column(columnDefinition = "geography(Point,4326)")
-    private Point location;
+    // Store lat/lng as simple doubles instead of PostGIS Point
+    private Double latitude;
+    private Double longitude;
 
     private Double rating = 5.0;
     private Integer totalOrders = 0;

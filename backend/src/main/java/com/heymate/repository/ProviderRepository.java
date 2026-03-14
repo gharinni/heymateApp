@@ -16,19 +16,26 @@ public interface ProviderRepository extends JpaRepository<Provider, Long> {
 
     List<Provider> findByServiceTypeAndIsOnline(String serviceType, boolean isOnline);
 
-    // PostGIS: find providers within radius sorted by distance
+    // Simple distance calculation using lat/lng (no PostGIS needed)
     @Query(value = """
         SELECT p.* FROM providers p
         WHERE p.is_online = true
           AND (:serviceType IS NULL OR p.service_type = :serviceType)
-          AND ST_DWithin(
-            p.location,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
-            :radiusMeters
-          )
-        ORDER BY ST_Distance(
-            p.location,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+          AND p.latitude IS NOT NULL
+          AND p.longitude IS NOT NULL
+          AND (
+            6371000 * acos(
+              cos(radians(:lat)) * cos(radians(p.latitude)) *
+              cos(radians(p.longitude) - radians(:lng)) +
+              sin(radians(:lat)) * sin(radians(p.latitude))
+            )
+          ) <= :radiusMeters
+        ORDER BY (
+            6371000 * acos(
+              cos(radians(:lat)) * cos(radians(p.latitude)) *
+              cos(radians(p.longitude) - radians(:lng)) +
+              sin(radians(:lat)) * sin(radians(p.latitude))
+            )
         ) ASC
         LIMIT :limitCount
         """, nativeQuery = true)
@@ -40,13 +47,8 @@ public interface ProviderRepository extends JpaRepository<Provider, Long> {
         @Param("limitCount") int limitCount
     );
 
-    // Update provider location
     @Modifying
-    @Query(value = """
-        UPDATE providers
-        SET location = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
-        WHERE id = :providerId
-        """, nativeQuery = true)
+    @Query("UPDATE Provider p SET p.latitude = :lat, p.longitude = :lng WHERE p.id = :providerId")
     void updateLocation(
         @Param("providerId") Long providerId,
         @Param("lat") double lat,

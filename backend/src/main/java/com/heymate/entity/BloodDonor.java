@@ -2,7 +2,6 @@ package com.heymate.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.locationtech.jts.geom.Point;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -20,8 +19,9 @@ public class BloodDonor {
     @Column(nullable = false)
     private String bloodType;
 
-    @Column(columnDefinition = "geography(Point,4326)")
-    private Point location;
+    // Simple lat/lng instead of PostGIS Point
+    private Double latitude;
+    private Double longitude;
 
     private boolean isAvailable = true;
     private LocalDate lastDonated;

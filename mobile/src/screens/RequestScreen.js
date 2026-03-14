@@ -7,7 +7,7 @@ import {
   ScrollView, Alert, ActivityIndicator, Modal, FlatList,
 } from 'react-native';
 import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { useSelector } from 'react-redux';
 import { useAppTheme } from '../context/AppThemeContext';
 import { API_URL } from '../api/index';
@@ -85,13 +85,23 @@ export default function RequestScreen() {
     setTimeout(() => setNotifVisible(false), 4000);
   };
 
+  const getToken = async () => {
+    if (Platform.OS === 'web') return localStorage.getItem('token');
+    const AS = (await import('@react-native-async-storage/async-storage')).default;
+    return AS.getItem('token');
+  };
+
   const apiCall = async (method, url, data=null) => {
-    const token = await AsyncStorage.getItem('token');
+    const token = await getToken();
+    if (!token) throw new Error('Not logged in. Please login again.');
     const res = await fetch(`${API_URL}${url}`, {
-      method, headers:{'Content-Type':'application/json', Authorization:`Bearer ${token}`},
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       ...(data && { body: JSON.stringify(data) }),
     });
-    return res.json();
+    const json = await res.json();
+    if (res.status === 401) throw new Error('Session expired. Please login again.');
+    return json;
   };
 
   const detectLocation = async () => {
@@ -115,21 +125,56 @@ export default function RequestScreen() {
     if (!title.trim())       { Alert.alert('Error','Enter a title'); return; }
     if (!description.trim()) { Alert.alert('Error','Describe the problem'); return; }
     if (!category)           { Alert.alert('Error','Select a category'); return; }
-    if (!address.trim())     { Alert.alert('Error','Enter your address'); return; }
     setSubmitting(true);
     try {
-      const res = await apiCall('POST','/requests',{
-        title:title.trim(), description:description.trim(), category,
-        budget: budget?Number(budget):0,
-        latitude:userLoc?.latitude, longitude:userLoc?.longitude, address:address.trim(),
+      const token = await getToken();
+      if (!token) { Alert.alert('Not logged in','Please log in again.'); setSubmitting(false); return; }
+
+      const payload = {
+        title:       title.trim(),
+        description: description.trim(),
+        category,
+        budget:      budget ? Number(budget) : 0,
+        address:     address.trim() || 'Address not provided',
+        latitude:    userLoc?.latitude  || null,
+        longitude:   userLoc?.longitude || null,
+      };
+
+      const response = await fetch(`${API_URL}/requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
       });
-      if (res.success) {
-        Alert.alert('🎉 Sent!','Request sent to nearby providers!');
-        setTitle(''); setDescription(''); setCategory(''); setBudget('');
-        setTab('my'); fetchMyRequests();
-      } else Alert.alert('Error',res.message);
-    } catch (e) { Alert.alert('Error',e.message); }
-    finally { setSubmitting(false); }
+
+      let res = {};
+      try { res = await response.json(); } catch {}
+
+      if (res.success || res._id || res.id || response.ok) {
+        socket.emit('new-request', {
+          requestId:   res.data?._id || res.data?.id || res._id,
+          title:       payload.title,
+          category,
+          serviceType: category.toLowerCase(),
+          description: payload.description,
+          address:     payload.address,
+          budget:      payload.budget,
+          latitude:    payload.latitude,
+          longitude:   payload.longitude,
+          user:        { name: user?.name, id: user?._id || user?.id },
+          createdAt:   new Date().toISOString(),
+        });
+        Alert.alert('Request Sent!', 'Nearby providers will see it instantly.');
+        setTitle(''); setDescription(''); setCategory(''); setBudget(''); setAddress('');
+        setTab('my');
+        fetchMyRequests();
+      } else {
+        Alert.alert('Failed', res.message || res.error || `Error ${response.status}. Try logging out and back in.`);
+      }
+    } catch (e) {
+      Alert.alert('Network Error', e.message || 'Could not reach server.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const openRequest = async req => {

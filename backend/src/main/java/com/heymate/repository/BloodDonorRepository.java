@@ -10,19 +10,26 @@ import java.util.List;
 @Repository
 public interface BloodDonorRepository extends JpaRepository<BloodDonor, Long> {
 
+    // Simple distance calculation without PostGIS
     @Query(value = """
         SELECT bd.* FROM blood_donors bd
-        JOIN users u ON bd.user_id = u.id
         WHERE bd.is_available = true
           AND bd.blood_type = :bloodType
-          AND ST_DWithin(
-            bd.location,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
-            :radiusMeters
-          )
-        ORDER BY ST_Distance(
-            bd.location,
-            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+          AND bd.latitude IS NOT NULL
+          AND bd.longitude IS NOT NULL
+          AND (
+            6371000 * acos(
+              cos(radians(:lat)) * cos(radians(bd.latitude)) *
+              cos(radians(bd.longitude) - radians(:lng)) +
+              sin(radians(:lat)) * sin(radians(bd.latitude))
+            )
+          ) <= :radiusMeters
+        ORDER BY (
+            6371000 * acos(
+              cos(radians(:lat)) * cos(radians(bd.latitude)) *
+              cos(radians(bd.longitude) - radians(:lng)) +
+              sin(radians(:lat)) * sin(radians(bd.latitude))
+            )
         ) ASC
         LIMIT 20
         """, nativeQuery = true)
