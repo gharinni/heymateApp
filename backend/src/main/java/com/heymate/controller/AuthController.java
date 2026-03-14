@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -24,7 +25,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthDTO.AuthResponse> login(
-            @Valid @RequestBody AuthDTO.LoginRequest req) {
+            @RequestBody AuthDTO.LoginRequest req) {
         return ResponseEntity.ok(authService.login(req));
     }
 
@@ -34,5 +35,24 @@ public class AuthController {
             @AuthenticationPrincipal UserDetails userDetails) {
         authService.updateFcmToken(userDetails.getUsername(), req.getFcmToken());
         return ResponseEntity.ok("FCM token updated");
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, Object>> forgotPassword(
+            @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(authService.forgotPassword(body.get("email")));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, Object>> resetPassword(
+            @RequestBody AuthDTO.ResetPasswordRequest req) {
+        return ResponseEntity.ok(authService.resetPassword(req));
+    }
+
+    @PutMapping("/switch-role")
+    public ResponseEntity<AuthDTO.AuthResponse> switchRole(
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(authService.switchRole(userDetails.getUsername(), body.get("role")));
     }
 }
