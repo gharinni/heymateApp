@@ -3,8 +3,8 @@ import { Platform } from 'react-native';
 
 // ═══════════════════════════════════════════════════════════
 //  HeyMate — API Configuration
-//  Frontend: https://heymateapp-production.up.railway.app
-//  Backend:  https://heymatebackend-production.up.railway.app
+//  Both Web and Mobile use Railway Cloud Backend
+//  Anyone anywhere can login — no WiFi restriction
 // ═══════════════════════════════════════════════════════════
 
 export const FRONTEND_URL = 'https://heymateapp-production.up.railway.app';
