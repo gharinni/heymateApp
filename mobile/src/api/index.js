@@ -4,11 +4,11 @@ import { Platform } from 'react-native';
 // ═══════════════════════════════════════════════════════════
 //  HeyMate — API Configuration
 //  Frontend: https://heymateapp-production.up.railway.app
-//  Backend:  https://distinguished-elegance-production.up.railway.app
+//  Backend:  https://janessa-semioxygenized-tasia.ngrok-free.dev
 // ═══════════════════════════════════════════════════════════
 
 export const FRONTEND_URL = 'https://heymateapp-production.up.railway.app';
-export const BASE_URL     = 'https://distinguished-elegance-production.up.railway.app';
+export const BASE_URL     = 'https://janessa-semioxygenized-tasia.ngrok-free.dev';
 export const API_URL      = BASE_URL + '/api';
 export const SOCKET_URL   = BASE_URL;
 
@@ -21,12 +21,16 @@ const getToken = async () => {
 const api = axios.create({
   baseURL: API_URL,
   timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
+  },
 });
 
 api.interceptors.request.use(async config => {
   const token = await getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers['ngrok-skip-browser-warning'] = 'true';
   return config;
 });
 
