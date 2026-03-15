@@ -3,12 +3,12 @@ import { Platform } from 'react-native';
 
 // ═══════════════════════════════════════════════════════════
 //  HeyMate — API Configuration
-//  Both Web and Mobile use Railway Cloud Backend
-//  Anyone anywhere can login — no WiFi restriction
+//  Frontend: https://heymateapp-production.up.railway.app
+//  Backend:  https://distinguished-elegance-production.up.railway.app
 // ═══════════════════════════════════════════════════════════
 
 export const FRONTEND_URL = 'https://heymateapp-production.up.railway.app';
-export const BASE_URL     = 'https://heymate-backend.up.railway.app';
+export const BASE_URL     = 'https://distinguished-elegance-production.up.railway.app';
 export const API_URL      = BASE_URL + '/api';
 export const SOCKET_URL   = BASE_URL;
 
