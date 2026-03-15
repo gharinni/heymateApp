@@ -8,7 +8,7 @@ import { Platform } from 'react-native';
 // ═══════════════════════════════════════════════════════════
 
 export const FRONTEND_URL = 'https://heymateapp-production.up.railway.app';
-export const BASE_URL     = 'https://heymatebackend-production.up.railway.app';
+export const BASE_URL     = 'https://heymate-backend.up.railway.app';
 export const API_URL      = BASE_URL + '/api';
 export const SOCKET_URL   = BASE_URL;
 
