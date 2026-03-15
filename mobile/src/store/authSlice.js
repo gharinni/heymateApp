@@ -1,55 +1,92 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { authAPI } from '../api/auth.api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
-// Persist user to AsyncStorage every time we update it
-const persistUser = async (user) => {
+// ── Platform-aware storage ────────────────────────────────
+const saveToStorage = async (key, value) => {
   try {
-    await AsyncStorage.setItem('user', JSON.stringify(user));
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+    } else {
+      const AS = (await import('@react-native-async-storage/async-storage')).default;
+      await AS.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+    }
   } catch {}
 };
 
+const removeFromStorage = async (key) => {
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key);
+    } else {
+      const AS = (await import('@react-native-async-storage/async-storage')).default;
+      await AS.removeItem(key);
+    }
+  } catch {}
+};
+
+const persistUser = async (user) => {
+  await saveToStorage('user', JSON.stringify(user));
+  if (user?.token) await saveToStorage('token', user.token);
+};
+
+// ── Thunks ────────────────────────────────────────────────
 export const loginThunk = createAsyncThunk('auth/login',
-  async ({ phone, password }, { rejectWithValue }) => {
-    try { return await authAPI.login(phone, password); }
-    catch (e) { return rejectWithValue(e.response?.data?.error || 'Login failed'); }
+  async (credentials, { rejectWithValue }) => {
+    try {
+      return await authAPI.loginWithCredentials(credentials);
+    } catch (e) {
+      return rejectWithValue(
+        e.response?.data?.message || e.response?.data?.error || e.message || 'Login failed'
+      );
+    }
   }
 );
 
 export const registerThunk = createAsyncThunk('auth/register',
   async (data, { rejectWithValue }) => {
-    try { return await authAPI.register(data); }
-    catch (e) { return rejectWithValue(e.response?.data?.error || 'Registration failed'); }
+    try {
+      return await authAPI.register(data);
+    } catch (e) {
+      return rejectWithValue(e.response?.data?.error || e.message || 'Registration failed');
+    }
   }
 );
 
+// ── Slice ─────────────────────────────────────────────────
 const authSlice = createSlice({
   name: 'auth',
   initialState: { user: null, token: null, loading: false, error: null },
   reducers: {
     setUser: (state, action) => {
-      state.user = action.payload;
-      // Also persist to AsyncStorage so it survives app restarts
+      state.user   = action.payload;
+      state.token  = action.payload?.token || state.token;
       persistUser(action.payload);
     },
     logout: (state) => {
-      state.user = null;
+      state.user  = null;
       state.token = null;
+      removeFromStorage('user');
+      removeFromStorage('token');
       authAPI.logout();
     },
     clearError: (state) => { state.error = null; },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(loginThunk.pending,   (s) => { s.loading = true; s.error = null; })
+      .addCase(loginThunk.pending,   s => { s.loading = true; s.error = null; })
       .addCase(loginThunk.fulfilled, (s, a) => {
-        s.loading = false; s.user = a.payload; s.token = a.payload.token;
+        s.loading = false;
+        s.user    = a.payload;
+        s.token   = a.payload?.token;
         persistUser(a.payload);
       })
       .addCase(loginThunk.rejected,  (s, a) => { s.loading = false; s.error = a.payload; })
-      .addCase(registerThunk.pending,   (s) => { s.loading = true; s.error = null; })
+      .addCase(registerThunk.pending,   s => { s.loading = true; s.error = null; })
       .addCase(registerThunk.fulfilled, (s, a) => {
-        s.loading = false; s.user = a.payload; s.token = a.payload.token;
+        s.loading = false;
+        s.user    = a.payload;
+        s.token   = a.payload?.token;
         persistUser(a.payload);
       })
       .addCase(registerThunk.rejected,  (s, a) => { s.loading = false; s.error = a.payload; });
