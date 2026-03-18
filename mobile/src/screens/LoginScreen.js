@@ -4,7 +4,7 @@ import {
   StyleSheet, Alert, ActivityIndicator, ScrollView, Modal, Platform,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { loginThunk, registerThunk } from '../store/authSlice';
+import { loginThunk, registerThunk, setUser } from '../store/authSlice';
 import { useAppTheme } from '../context/AppThemeContext';
 
 const NEW_BACKEND = 'https://distinguished-elegance-production.up.railway.app/api';
@@ -78,9 +78,8 @@ export default function LoginScreen({ navigation }) {
           // Normalize role and dispatch to Redux
           if (res.role) res.role = res.role.toUpperCase();
           if (!res.role) res.role = 'USER';
-          dispatch({ type: 'auth/setUser', payload: res });
-          // Navigate to main app
-          navigation.replace('Main');
+          // Dispatch setUser — AppNavigator automatically shows Main screen
+          dispatch(setUser(res));
         } else {
           Alert.alert('Login Failed', res?.message || res?.error || 'Check your credentials.');
         }
@@ -111,9 +110,8 @@ export default function LoginScreen({ navigation }) {
           }
           if (regRes.role) regRes.role = regRes.role.toUpperCase();
           if (!regRes.role) regRes.role = 'USER';
-          dispatch({ type: 'auth/setUser', payload: regRes });
+          dispatch(setUser(regRes));
           Alert.alert('✅ Account Created!', 'Welcome to HeyMate!');
-          navigation.replace('Main');
         } else {
           Alert.alert('Registration Failed', regRes?.message || regRes?.error || 'Try again.');
         }
