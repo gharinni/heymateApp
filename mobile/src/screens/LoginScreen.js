@@ -1,336 +1,456 @@
+// frontend/src/screens/LoginScreen.js
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator, ScrollView, Modal,
+  StyleSheet, Alert, ActivityIndicator, ScrollView, Modal,
 } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { loginThunk, registerThunk } from '../store/authSlice';
-import { useAppTheme } from '../context/AppThemeContext';
-import { API_URL } from '../api/index';
+import { useAuth } from '../context/AuthContext';
+
+const API_URL = 'https://distinguished-elegance-production.up.railway.app/api';
 
 export default function LoginScreen({ navigation }) {
-  const dispatch = useDispatch();
-  const { colors: c, isDark } = useAppTheme();
+  const { login } = useAuth();
 
-  const [mode, setMode]       = useState('login');   // login | signup
-  const [role, setRole]       = useState('USER');
-  const [loginMode, setLoginMode] = useState('phone'); // phone | email
-  const [loading, setLoading] = useState(false);
-  const [form, setForm]       = useState({ name:'', phone:'', email:'', password:'', serviceType:'', pricePerUnit:'', description:'' });
-  const [showPass, setShowPass] = useState(false);
+  const [loginMode, setLoginMode]   = useState('email');
+  const [email, setEmail]           = useState('');
+  const [phone, setPhone]           = useState('');
+  const [password, setPassword]     = useState('');
+  const [showPass, setShowPass]     = useState(false);
+  const [loading, setLoading]       = useState(false);
 
-  // Forgot password
-  const [forgotModal, setForgotModal]   = useState(false);
-  const [forgotStep, setForgotStep]     = useState(1);
-  const [forgotEmail, setForgotEmail]   = useState('');
-  const [otp, setOtp]                   = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('');
-  const [newPass, setNewPass]           = useState('');
-  const [confirmPass, setConfirmPass]   = useState('');
+  // ── Forgot Password ──────────────────────────────────────────────────────────
+  const [forgotModal, setForgotModal]     = useState(false);
+  const [forgotStep, setForgotStep]       = useState(1); // 1=email, 2=otp, 3=newpass
+  const [forgotEmail, setForgotEmail]     = useState('');
+  const [otp, setOtp]                     = useState('');
+  const [generatedOtp, setGeneratedOtp]   = useState('');
+  const [newPassword, setNewPassword]     = useState('');
+  const [confirmNewPass, setConfirmNewPass] = useState('');
+  const [showNewPass, setShowNewPass]     = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
 
-  const set = k => v => setForm(f => ({ ...f, [k]: v }));
+  // ── LOGIN ────────────────────────────────────────────────────────────────────
+  const handleLogin = async () => {
+    const identifier = loginMode === 'email' ? email.trim() : phone.trim();
+    if (!identifier) { Alert.alert('Error', `Please enter your ${loginMode === 'email' ? 'email' : 'phone'}`); return; }
+    if (!password)   { Alert.alert('Error', 'Please enter your password'); return; }
 
-  const submit = async () => {
-    setLoading(true);
     try {
-      if (mode === 'login') {
-        const credentials = loginMode === 'phone'
-          ? { phone: form.phone, password: form.password }
-          : { email: form.email.trim().toLowerCase(), password: form.password };
-        const res = await dispatch(loginThunk(credentials)).unwrap();
-        if (!res?.token) Alert.alert('Login Failed', 'Check your credentials.');
-      } else {
-        if (!form.name.trim())     { Alert.alert('Error','Enter your name'); return; }
-        if (form.phone.length!==10){ Alert.alert('Error','Enter 10-digit phone'); return; }
-        if (!form.password||form.password.length<6){ Alert.alert('Error','Password min 6 chars'); return; }
-        await dispatch(registerThunk({ ...form, role })).unwrap();
+      setLoading(true);
+      const credentials = loginMode === 'email'
+        ? { email: email.trim().toLowerCase(), password }
+        : { phone: phone.trim(), password };
+
+      const result = await login(credentials);
+      if (!result.success) {
+        const msg = result.message || 'Login failed';
+        if (msg.includes('Cannot connect') || msg.includes('timed out')) {
+          Alert.alert('🔴 Server Unreachable', 'Check your internet connection.\n\n' + msg);
+        } else if (msg.includes('No account') || msg.includes('not found')) {
+          Alert.alert('Account Not Found', `No account with this ${loginMode}.\nPlease register first!`);
+        } else if (msg.includes('password') || msg.includes('Incorrect')) {
+          Alert.alert('Wrong Password', 'Incorrect password. Please try again.\n\nForgot your password? Tap "Forgot Password" below.');
+        } else {
+          Alert.alert('Login Failed', msg);
+        }
       }
     } catch (e) {
-      const msg = e?.message || String(e);
-      if (msg.includes('Network')||msg.includes('ECONNREFUSED')) {
-        Alert.alert('Cannot Connect','Check internet or backend.\n'+msg);
-      } else {
-        Alert.alert(mode==='login'?'Login Failed':'Registration Failed', msg);
-      }
-    } finally { setLoading(false); }
+      Alert.alert('Error', e.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const sendOtp = async () => {
-    if (!forgotEmail.trim()) { Alert.alert('Error','Enter email'); return; }
+  // ── FORGOT PASSWORD — Step 1: Send OTP ──────────────────────────────────────
+  const handleSendOtp = async () => {
+    if (!forgotEmail.trim()) { Alert.alert('Error', 'Enter your registered email'); return; }
     setForgotLoading(true);
     try {
       const res  = await fetch(`${API_URL}/auth/forgot-password`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ email: forgotEmail.trim().toLowerCase() }),
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email: forgotEmail.trim().toLowerCase() }),
       });
       const data = await res.json();
       if (data.success) {
-        setGeneratedOtp(data.otp||'');
+        // Store OTP from response (dev mode) or show success
+        setGeneratedOtp(data.otp || '');
         setForgotStep(2);
-        Alert.alert('✅ OTP Sent!', data.otp ? `OTP: ${data.otp} (dev mode)` : 'Check your email.');
-      } else Alert.alert('Error', data.message||'Email not found');
-    } catch { Alert.alert('Error','Cannot connect'); }
-    finally { setForgotLoading(false); }
+        Alert.alert(
+          '✅ OTP Sent!',
+          data.otp
+            ? `Your OTP is: ${data.otp}\n(Shown for testing purposes)`
+            : 'Check your email for the OTP code.',
+        );
+      } else {
+        Alert.alert('Error', data.message || 'Email not found');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Cannot connect to server');
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
-  const verifyOtp = () => {
-    if (!otp.trim()) { Alert.alert('Error','Enter OTP'); return; }
-    if (otp.trim()!==generatedOtp.trim()&&otp.trim().length!==6) {
-      Alert.alert('Invalid OTP','Check and try again.'); return;
+  // ── FORGOT PASSWORD — Step 2: Verify OTP ────────────────────────────────────
+  const handleVerifyOtp = () => {
+    if (!otp.trim()) { Alert.alert('Error', 'Enter the OTP'); return; }
+    if (otp.trim() !== generatedOtp.trim() && otp.trim().length !== 6) {
+      Alert.alert('Error', 'Invalid OTP. Please check and try again.');
+      return;
     }
     setForgotStep(3);
   };
 
-  const resetPassword = async () => {
-    if (!newPass||newPass.length<6) { Alert.alert('Error','Min 6 chars'); return; }
-    if (newPass!==confirmPass)      { Alert.alert('Error','Passwords don\'t match'); return; }
+  // ── FORGOT PASSWORD — Step 3: Reset Password ─────────────────────────────────
+  const handleResetPassword = async () => {
+    if (!newPassword)              { Alert.alert('Error', 'Enter new password'); return; }
+    if (newPassword.length < 6)    { Alert.alert('Error', 'Password must be at least 6 characters'); return; }
+    if (newPassword !== confirmNewPass) { Alert.alert('Error', 'Passwords do not match'); return; }
+
     setForgotLoading(true);
     try {
       const res  = await fetch(`${API_URL}/auth/reset-password`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ email: forgotEmail.trim().toLowerCase(), otp: otp.trim(), password: newPass }),
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          email:    forgotEmail.trim().toLowerCase(),
+          otp:      otp.trim(),
+          password: newPassword,
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        setForgotModal(false); setForgotStep(1);
-        setForgotEmail(''); setOtp(''); setNewPass(''); setConfirmPass('');
-        Alert.alert('✅ Password Reset!','Login with your new password.');
-      } else Alert.alert('Error', data.message||'Reset failed');
-    } catch { Alert.alert('Error','Cannot connect'); }
-    finally { setForgotLoading(false); }
+        setForgotModal(false);
+        setForgotStep(1);
+        setForgotEmail(''); setOtp(''); setNewPassword(''); setConfirmNewPass('');
+        Alert.alert('✅ Password Reset!', 'Your password has been changed successfully.\nPlease login with your new password.');
+      } else {
+        Alert.alert('Error', data.message || 'Reset failed');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Cannot connect to server');
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   const closeForgot = () => {
-    setForgotModal(false); setForgotStep(1);
-    setForgotEmail(''); setOtp(''); setNewPass(''); setConfirmPass('');
+    setForgotModal(false);
+    setForgotStep(1);
+    setForgotEmail(''); setOtp(''); setNewPassword(''); setConfirmNewPass('');
   };
 
-  const inp = [
-    { borderWidth:1.5, borderColor:c.border, borderRadius:12, padding:14,
-      fontSize:15, backgroundColor:c.card, marginBottom:14, color:c.text }
-  ];
-
+  // ── RENDER ───────────────────────────────────────────────────────────────────
   return (
-    <ScrollView style={{ flex:1, backgroundColor:c.bg }} keyboardShouldPersistTaps="handled">
-      <View style={{ padding:24, paddingTop:70 }}>
+    <ScrollView style={s.container} keyboardShouldPersistTaps="handled">
+      <View style={s.inner}>
 
         {/* Logo */}
-        <View style={{ alignItems:'center', marginBottom:36 }}>
-          <View style={{ width:72, height:72, borderRadius:20, backgroundColor:c.primary, alignItems:'center', justifyContent:'center', marginBottom:12 }}>
-            <Text style={{ fontSize:36 }}>⚡</Text>
-          </View>
-          <Text style={{ fontSize:32, fontWeight:'800', color:c.text }}>
-            Hey<Text style={{ color:c.primary }}>Mate</Text>
-          </Text>
-          <Text style={{ color:c.textMuted, fontSize:13, marginTop:4 }}>One App · Any Task · Any Time</Text>
+        <View style={s.header}>
+          <Text style={s.logo}>👋 HeyMate</Text>
+          <Text style={s.subtitle}>Welcome back!</Text>
         </View>
 
-        {/* Mode tabs */}
-        <View style={{ flexDirection:'row', backgroundColor:c.card, borderRadius:14, padding:4, marginBottom:14, borderWidth:1, borderColor:c.border }}>
-          {['login','signup'].map(m => (
-            <TouchableOpacity key={m} onPress={() => setMode(m)}
-              style={{ flex:1, padding:10, borderRadius:10, alignItems:'center', backgroundColor:mode===m?c.primary:'transparent' }}>
-              <Text style={{ color:mode===m?'#fff':c.textMuted, fontWeight:'700', fontSize:13 }}>
-                {m==='login'?'🔑 Login':'✍️ Sign Up'}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        {/* Mode Toggle */}
+        <View style={s.toggle}>
+          <TouchableOpacity
+            style={[s.toggleBtn, loginMode === 'email' && s.toggleActive]}
+            onPress={() => setLoginMode('email')}
+          >
+            <Text style={[s.toggleTxt, loginMode === 'email' && s.toggleTxtActive]}>📧 Email</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.toggleBtn, loginMode === 'phone' && s.toggleActive]}
+            onPress={() => setLoginMode('phone')}
+          >
+            <Text style={[s.toggleTxt, loginMode === 'phone' && s.toggleTxtActive]}>📱 Phone</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Role toggle (signup only) */}
-        {mode==='signup' && (
-          <View style={{ flexDirection:'row', backgroundColor:c.card, borderRadius:14, padding:4, marginBottom:14, borderWidth:1, borderColor:c.border }}>
-            {[{v:'USER',label:'👤 User'},{v:'PROVIDER',label:'🧰 Provider'}].map(r => (
-              <TouchableOpacity key={r.v} onPress={() => setRole(r.v)}
-                style={{ flex:1, padding:10, borderRadius:10, alignItems:'center', backgroundColor:role===r.v?c.success:'transparent' }}>
-                <Text style={{ color:role===r.v?'#fff':c.textMuted, fontWeight:'700', fontSize:13 }}>{r.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Login mode toggle */}
-        {mode==='login' && (
-          <View style={{ flexDirection:'row', gap:8, marginBottom:14 }}>
-            {['phone','email'].map(lm => (
-              <TouchableOpacity key={lm} onPress={() => setLoginMode(lm)}
-                style={{ flex:1, padding:10, borderRadius:12, borderWidth:1.5, alignItems:'center',
-                  borderColor:loginMode===lm?c.primary:c.border,
-                  backgroundColor:loginMode===lm?`${c.primary}18`:c.card }}>
-                <Text style={{ color:loginMode===lm?c.primary:c.textMuted, fontWeight:'600', fontSize:13 }}>
-                  {lm==='phone'?'📱 Phone':'📧 Email'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Name (signup) */}
-        {mode==='signup' && (
-          <TextInput style={inp[0]} placeholder="Full Name" placeholderTextColor={c.textMuted}
-            value={form.name} onChangeText={set('name')} autoCapitalize="words" />
-        )}
-
-        {/* Phone / Email */}
-        {(mode==='signup'||loginMode==='phone') ? (
-          <View style={{ flexDirection:'row', gap:10, marginBottom:14 }}>
-            <View style={{ flexDirection:'row', alignItems:'center', backgroundColor:c.card, borderRadius:12, borderWidth:1.5, borderColor:c.border, paddingHorizontal:12 }}>
-              <Text style={{ fontSize:18 }}>🇮🇳</Text>
-              <Text style={{ color:c.text, fontWeight:'600', marginLeft:4 }}>+91</Text>
-            </View>
-            <TextInput style={[inp[0],{flex:1,marginBottom:0}]} placeholder="10-digit phone"
-              placeholderTextColor={c.textMuted} value={form.phone}
-              onChangeText={t => set('phone')(t.replace(/\D/g,'').slice(0,10))}
-              keyboardType="phone-pad" />
-          </View>
+        {/* Email or Phone */}
+        {loginMode === 'email' ? (
+          <>
+            <Text style={s.label}>Email Address</Text>
+            <TextInput
+              style={s.input}
+              placeholder="Enter your email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </>
         ) : (
-          <TextInput style={inp[0]} placeholder="Email address" placeholderTextColor={c.textMuted}
-            value={form.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" />
-        )}
-
-        {/* Email for signup */}
-        {mode==='signup' && (
-          <TextInput style={inp[0]} placeholder="Email (optional)" placeholderTextColor={c.textMuted}
-            value={form.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" />
+          <>
+            <Text style={s.label}>Phone Number</Text>
+            <View style={s.phoneRow}>
+              <View style={s.countryCode}>
+                <Text style={s.flag}>🇮🇳</Text>
+                <Text style={s.countryNum}>+91</Text>
+              </View>
+              <TextInput
+                style={[s.input, { flex: 1, marginBottom: 0 }]}
+                placeholder="10-digit number"
+                value={phone}
+                onChangeText={t => setPhone(t.replace(/\D/g, '').slice(0, 10))}
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
+            </View>
+            <View style={{ marginBottom: 16 }} />
+          </>
         )}
 
         {/* Password */}
-        <View style={{ flexDirection:'row', alignItems:'center', gap:8, marginBottom:14 }}>
-          <TextInput style={[inp[0],{flex:1,marginBottom:0}]} placeholder="Password"
-            placeholderTextColor={c.textMuted} value={form.password} onChangeText={set('password')}
-            secureTextEntry={!showPass} autoCapitalize="none" />
-          <TouchableOpacity onPress={() => setShowPass(!showPass)} style={{ padding:8 }}>
-            <Text style={{ fontSize:20 }}>{showPass?'🙈':'👁️'}</Text>
+        <Text style={s.label}>Password</Text>
+        <View style={s.passRow}>
+          <TextInput
+            style={[s.input, { flex: 1, marginBottom: 0 }]}
+            placeholder="Enter your password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPass}
+            autoCapitalize="none"
+          />
+          <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPass(!showPass)}>
+            <Text style={{ fontSize: 22 }}>{showPass ? '🙈' : '👁️'}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Provider fields */}
-        {mode==='signup' && role==='PROVIDER' && (
-          <View style={{ backgroundColor:`${c.primary}10`, borderRadius:14, padding:14, marginBottom:14, borderWidth:1, borderColor:`${c.primary}33` }}>
-            <Text style={{ color:c.primary, fontWeight:'700', marginBottom:10 }}>🔧 Provider Details</Text>
-            <TextInput style={inp[0]} placeholder="Service Type (e.g. Plumber)"
-              placeholderTextColor={c.textMuted} value={form.serviceType} onChangeText={set('serviceType')} />
-            <TextInput style={[inp[0],{height:80}]} placeholder="Description (optional)"
-              placeholderTextColor={c.textMuted} value={form.description} onChangeText={set('description')} multiline />
-            <TextInput style={inp[0]} placeholder="Price per unit (e.g. ₹300/visit)"
-              placeholderTextColor={c.textMuted} value={form.pricePerUnit} onChangeText={set('pricePerUnit')} />
-          </View>
-        )}
-
-        {/* Forgot password */}
-        {mode==='login' && (
-          <TouchableOpacity onPress={() => setForgotModal(true)} style={{ alignSelf:'flex-end', marginBottom:16 }}>
-            <Text style={{ color:c.primary, fontWeight:'600', fontSize:13 }}>🔑 Forgot Password?</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Submit */}
-        <TouchableOpacity onPress={submit} disabled={loading}
-          style={{ backgroundColor:c.primary, borderRadius:14, padding:16, alignItems:'center', opacity:loading?0.7:1 }}>
-          {loading ? <ActivityIndicator color="#fff" />
-            : <Text style={{ color:'#fff', fontWeight:'800', fontSize:16 }}>
-                {mode==='login'?'🚀 Login':'✅ Create Account'}
-              </Text>}
+        {/* Forgot Password Link */}
+        <TouchableOpacity
+          style={s.forgotLink}
+          onPress={() => setForgotModal(true)}
+        >
+          <Text style={s.forgotTxt}>🔑 Forgot Password?</Text>
         </TouchableOpacity>
 
-        {/* Switch mode link */}
-        <TouchableOpacity onPress={() => setMode(mode==='login'?'signup':'login')}
-          style={{ flexDirection:'row', justifyContent:'center', marginTop:20 }}>
-          <Text style={{ color:c.textMuted }}>
-            {mode==='login'?"Don't have an account? ":"Already have an account? "}
-          </Text>
-          <Text style={{ color:c.primary, fontWeight:'700' }}>
-            {mode==='login'?'Register Now':'Login'}
-          </Text>
+        {/* Login Button */}
+        <TouchableOpacity
+          style={[s.btn, loading && s.btnDisabled]}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={s.btnTxt}>Login</Text>
+          }
         </TouchableOpacity>
+
+        {/* Register link */}
+        <TouchableOpacity
+          style={s.registerRow}
+          onPress={() => navigation.navigate('Register')}
+        >
+          <Text style={s.registerTxt}>Don't have an account? </Text>
+          <Text style={s.registerLink}>Register Now</Text>
+        </TouchableOpacity>
+
       </View>
 
-      {/* ── Forgot Password Modal ── */}
+      {/* ══════════════════════════════════════════════
+          FORGOT PASSWORD MODAL
+      ══════════════════════════════════════════════ */}
       <Modal visible={forgotModal} animationType="slide" transparent onRequestClose={closeForgot}>
-        <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }}>
-          <View style={{ backgroundColor:c.card, borderTopLeftRadius:26, borderTopRightRadius:26, padding:24, paddingBottom:40, borderTopWidth:1, borderTopColor:c.border }}>
+        <View style={s.overlay}>
+          <View style={s.modalBox}>
 
-            <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20 }}>
+            {/* Header */}
+            <View style={s.modalHead}>
               <View>
-                <Text style={{ color:c.text, fontSize:22, fontWeight:'800' }}>🔑 Forgot Password</Text>
-                <Text style={{ color:c.textMuted, fontSize:13, marginTop:4 }}>
-                  {forgotStep===1?'Enter registered email':forgotStep===2?'Enter OTP':'Set new password'}
+                <Text style={s.modalTitle}>🔑 Forgot Password</Text>
+                <Text style={s.modalSub}>
+                  {forgotStep === 1 && 'Enter your registered email'}
+                  {forgotStep === 2 && 'Enter the OTP sent to your email'}
+                  {forgotStep === 3 && 'Set your new password'}
                 </Text>
               </View>
               <TouchableOpacity onPress={closeForgot}>
-                <Text style={{ fontSize:26, color:c.textMuted }}>✕</Text>
+                <Text style={{ fontSize: 26, color: '#6b7280' }}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Step indicators */}
-            <View style={{ flexDirection:'row', justifyContent:'center', alignItems:'center', marginBottom:20, gap:6 }}>
-              {[1,2,3].map(n => (
-                <View key={n} style={{ flexDirection:'row', alignItems:'center' }}>
-                  <View style={{ width:32, height:32, borderRadius:16, alignItems:'center', justifyContent:'center',
-                    backgroundColor:forgotStep>=n?c.primary:c.border }}>
-                    <Text style={{ color:'#fff', fontWeight:'800', fontSize:13 }}>{n}</Text>
+            {/* Step indicator */}
+            <View style={s.stepRow}>
+              {[1, 2, 3].map(n => (
+                <View key={n} style={s.stepWrap}>
+                  <View style={[s.stepCircle, forgotStep >= n && s.stepActive]}>
+                    <Text style={[s.stepNum, forgotStep >= n && { color: '#fff' }]}>{n}</Text>
                   </View>
-                  {n<3&&<View style={{ width:40, height:2, backgroundColor:forgotStep>n?c.primary:c.border, marginHorizontal:4 }} />}
+                  {n < 3 && <View style={[s.stepLine, forgotStep > n && s.stepLineDone]} />}
                 </View>
               ))}
             </View>
+            <View style={s.stepLabels}>
+              <Text style={s.stepLabel}>Email</Text>
+              <Text style={s.stepLabel}>OTP</Text>
+              <Text style={s.stepLabel}>Reset</Text>
+            </View>
 
-            {/* Step 1 */}
-            {forgotStep===1 && (
-              <View>
-                <Text style={{ color:c.text, fontWeight:'600', marginBottom:8 }}>Registered Email</Text>
-                <TextInput style={inp[0]} placeholder="Enter email" placeholderTextColor={c.textMuted}
-                  value={forgotEmail} onChangeText={setForgotEmail} keyboardType="email-address" autoCapitalize="none" />
-                <TouchableOpacity onPress={sendOtp} disabled={forgotLoading}
-                  style={{ backgroundColor:c.primary, borderRadius:14, padding:16, alignItems:'center', opacity:forgotLoading?0.7:1 }}>
-                  {forgotLoading ? <ActivityIndicator color="#fff" />
-                    : <Text style={{ color:'#fff', fontWeight:'700' }}>📨 Send OTP</Text>}
+            {/* ── Step 1: Email ── */}
+            {forgotStep === 1 && (
+              <View style={s.stepContent}>
+                <Text style={s.inputLabel}>Registered Email</Text>
+                <TextInput
+                  style={s.modalInput}
+                  placeholder="Enter your email address"
+                  value={forgotEmail}
+                  onChangeText={setForgotEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  style={[s.modalBtn, forgotLoading && s.modalBtnDisabled]}
+                  onPress={handleSendOtp}
+                  disabled={forgotLoading}
+                >
+                  {forgotLoading
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={s.modalBtnTxt}>📨 Send OTP</Text>
+                  }
                 </TouchableOpacity>
               </View>
             )}
 
-            {/* Step 2 */}
-            {forgotStep===2 && (
-              <View>
-                <View style={{ backgroundColor:`${c.primary}15`, borderRadius:12, padding:12, marginBottom:14 }}>
-                  <Text style={{ color:c.primary, fontSize:13 }}>✉️ OTP sent to {forgotEmail}</Text>
+            {/* ── Step 2: OTP ── */}
+            {forgotStep === 2 && (
+              <View style={s.stepContent}>
+                <View style={s.otpInfo}>
+                  <Text style={s.otpInfoTxt}>✉️ OTP sent to {forgotEmail}</Text>
                 </View>
-                <Text style={{ color:c.text, fontWeight:'600', marginBottom:8 }}>Enter 6-digit OTP</Text>
-                <TextInput style={[inp[0],{fontSize:28, letterSpacing:10, textAlign:'center', fontWeight:'800'}]}
-                  placeholder="------" placeholderTextColor={c.border}
-                  value={otp} onChangeText={t => setOtp(t.replace(/\D/g,'').slice(0,6))} keyboardType="number-pad" />
-                <TouchableOpacity onPress={verifyOtp}
-                  style={{ backgroundColor:c.primary, borderRadius:14, padding:16, alignItems:'center' }}>
-                  <Text style={{ color:'#fff', fontWeight:'700' }}>✅ Verify OTP</Text>
+                <Text style={s.inputLabel}>Enter 6-digit OTP</Text>
+                <TextInput
+                  style={[s.modalInput, s.otpInput]}
+                  placeholder="_ _ _ _ _ _"
+                  value={otp}
+                  onChangeText={t => setOtp(t.replace(/\D/g, '').slice(0, 6))}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                />
+                <TouchableOpacity
+                  style={s.modalBtn}
+                  onPress={handleVerifyOtp}
+                >
+                  <Text style={s.modalBtnTxt}>✅ Verify OTP</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={sendOtp} style={{ alignItems:'center', padding:12 }}>
-                  <Text style={{ color:c.primary, fontWeight:'600' }}>Resend OTP</Text>
+                <TouchableOpacity style={s.resendBtn} onPress={handleSendOtp}>
+                  <Text style={s.resendTxt}>Resend OTP</Text>
                 </TouchableOpacity>
               </View>
             )}
 
-            {/* Step 3 */}
-            {forgotStep===3 && (
-              <View>
-                <Text style={{ color:c.text, fontWeight:'600', marginBottom:8 }}>New Password</Text>
-                <TextInput style={inp[0]} placeholder="Min 6 characters" placeholderTextColor={c.textMuted}
-                  value={newPass} onChangeText={setNewPass} secureTextEntry />
-                <Text style={{ color:c.text, fontWeight:'600', marginBottom:8 }}>Confirm New Password</Text>
-                <TextInput style={[inp[0], confirmPass&&newPass!==confirmPass&&{borderColor:'#EF4444'}, confirmPass&&newPass===confirmPass&&{borderColor:c.success}]}
-                  placeholder="Re-enter password" placeholderTextColor={c.textMuted}
-                  value={confirmPass} onChangeText={setConfirmPass} secureTextEntry />
-                {confirmPass&&newPass===confirmPass&&<Text style={{ color:c.success, fontSize:12, marginBottom:8 }}>✅ Passwords match</Text>}
-                <TouchableOpacity onPress={resetPassword} disabled={forgotLoading}
-                  style={{ backgroundColor:c.success, borderRadius:14, padding:16, alignItems:'center', opacity:forgotLoading?0.7:1 }}>
-                  {forgotLoading ? <ActivityIndicator color="#fff" />
-                    : <Text style={{ color:'#fff', fontWeight:'700' }}>🔐 Reset Password</Text>}
+            {/* ── Step 3: New Password ── */}
+            {forgotStep === 3 && (
+              <View style={s.stepContent}>
+                <Text style={s.inputLabel}>New Password</Text>
+                <View style={s.passRowModal}>
+                  <TextInput
+                    style={[s.modalInput, { flex: 1, marginBottom: 0 }]}
+                    placeholder="Min. 6 characters"
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry={!showNewPass}
+                  />
+                  <TouchableOpacity style={s.eyeBtn} onPress={() => setShowNewPass(!showNewPass)}>
+                    <Text style={{ fontSize: 20 }}>{showNewPass ? '🙈' : '👁️'}</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={[s.inputLabel, { marginTop: 12 }]}>Confirm New Password</Text>
+                <TextInput
+                  style={[s.modalInput, confirmNewPass && newPassword !== confirmNewPass && { borderColor: '#ef4444' },
+                    confirmNewPass && newPassword === confirmNewPass && { borderColor: '#10b981' }]}
+                  placeholder="Re-enter new password"
+                  value={confirmNewPass}
+                  onChangeText={setConfirmNewPass}
+                  secureTextEntry={!showNewPass}
+                />
+                {confirmNewPass && newPassword === confirmNewPass && (
+                  <Text style={{ color: '#10b981', fontSize: 13, marginBottom: 8 }}>✅ Passwords match</Text>
+                )}
+                {confirmNewPass && newPassword !== confirmNewPass && (
+                  <Text style={{ color: '#ef4444', fontSize: 13, marginBottom: 8 }}>❌ Passwords don't match</Text>
+                )}
+                <TouchableOpacity
+                  style={[s.modalBtn, { backgroundColor: '#10b981' }, forgotLoading && s.modalBtnDisabled]}
+                  onPress={handleResetPassword}
+                  disabled={forgotLoading}
+                >
+                  {forgotLoading
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={s.modalBtnTxt}>🔐 Reset Password</Text>
+                  }
                 </TouchableOpacity>
               </View>
             )}
+
           </View>
         </View>
       </Modal>
+
     </ScrollView>
   );
 }
+
+const s = StyleSheet.create({
+  container:       { flex: 1, backgroundColor: '#f8fafc' },
+  inner:           { padding: 24, paddingTop: 70 },
+  header:          { alignItems: 'center', marginBottom: 36 },
+  logo:            { fontSize: 34, fontWeight: 'bold', color: '#2563eb', marginBottom: 8 },
+  subtitle:        { fontSize: 16, color: '#64748b' },
+  toggle:          { flexDirection: 'row', backgroundColor: '#e2e8f0', borderRadius: 12, padding: 4, marginBottom: 24 },
+  toggleBtn:       { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+  toggleActive:    { backgroundColor: '#2563eb' },
+  toggleTxt:       { fontSize: 14, fontWeight: '600', color: '#64748b' },
+  toggleTxtActive: { color: '#fff' },
+  label:           { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
+  input:           { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 12, padding: 14, fontSize: 15, backgroundColor: '#fff', marginBottom: 16, color: '#1f2937' },
+  phoneRow:        { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  countryCode:     { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 14, backgroundColor: '#fff', gap: 6 },
+  flag:            { fontSize: 20 },
+  countryNum:      { fontSize: 15, fontWeight: '600', color: '#374151' },
+  passRow:         { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  eyeBtn:          { padding: 8 },
+  forgotLink:      { alignSelf: 'flex-end', marginBottom: 20 },
+  forgotTxt:       { color: '#2563eb', fontSize: 14, fontWeight: '600' },
+  btn:             { backgroundColor: '#2563eb', borderRadius: 14, padding: 16, alignItems: 'center', elevation: 3, marginTop: 4 },
+  btnDisabled:     { backgroundColor: '#93c5fd' },
+  btnTxt:          { color: '#fff', fontSize: 17, fontWeight: 'bold' },
+  registerRow:     { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
+  registerTxt:     { color: '#64748b', fontSize: 15 },
+  registerLink:    { color: '#2563eb', fontSize: 15, fontWeight: '700' },
+
+  // Modal
+  overlay:         { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalBox:        { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40 },
+  modalHead:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  modalTitle:      { fontSize: 22, fontWeight: 'bold', color: '#1f2937' },
+  modalSub:        { fontSize: 13, color: '#6b7280', marginTop: 4 },
+
+  // Steps
+  stepRow:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  stepWrap:        { flexDirection: 'row', alignItems: 'center' },
+  stepCircle:      { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#d1d5db', backgroundColor: '#f9fafb', justifyContent: 'center', alignItems: 'center' },
+  stepActive:      { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  stepNum:         { fontSize: 14, fontWeight: 'bold', color: '#9ca3af' },
+  stepLine:        { width: 60, height: 2, backgroundColor: '#e5e7eb', marginHorizontal: 4 },
+  stepLineDone:    { backgroundColor: '#2563eb' },
+  stepLabels:      { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 20, paddingHorizontal: 20 },
+  stepLabel:       { fontSize: 12, color: '#6b7280', fontWeight: '600' },
+
+  // Step content
+  stepContent:     { gap: 4 },
+  inputLabel:      { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
+  modalInput:      { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 12, padding: 14, fontSize: 15, backgroundColor: '#f8fafc', color: '#1f2937', marginBottom: 16 },
+  otpInput:        { fontSize: 24, letterSpacing: 12, textAlign: 'center', fontWeight: 'bold' },
+  otpInfo:         { backgroundColor: '#eff6ff', borderRadius: 10, padding: 12, marginBottom: 16 },
+  otpInfoTxt:      { color: '#1d4ed8', fontSize: 13 },
+  modalBtn:        { backgroundColor: '#2563eb', borderRadius: 14, padding: 16, alignItems: 'center', elevation: 2 },
+  modalBtnDisabled:{ backgroundColor: '#93c5fd' },
+  modalBtnTxt:     { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  resendBtn:       { alignItems: 'center', padding: 14 },
+  resendTxt:       { color: '#2563eb', fontSize: 14, fontWeight: '600' },
+  passRowModal:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+});
