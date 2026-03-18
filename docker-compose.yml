@@ -1,22 +1,43 @@
 version: '3.8'
+
 services:
-  postgres:
-    image: postgis/postgis:15-3.3
+  database:
+    image: postgres:15-alpine
     container_name: heymate-db
     environment:
       POSTGRES_DB: heymatedb
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: heymate123
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: heymate-redis
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: heymate-backend
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/heymatedb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: heymate123
+      JWT_SECRET: heymatesecretkey123456789abcdefghij
+      PORT: 8080
+      FRONTEND_URL: https://heymateapp-production.up.railway.app
+      RAZORPAY_KEY_ID: rzp_test_placeholder
+      RAZORPAY_KEY_SECRET: placeholder_secret
     ports:
-      - "6379:6379"
+      - "8080:8080"
+    restart: on-failure
 
 volumes:
-  pgdata:
+  postgres_data:
