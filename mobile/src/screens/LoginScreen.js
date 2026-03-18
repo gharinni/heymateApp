@@ -57,8 +57,33 @@ export default function LoginScreen({ navigation }) {
           Alert.alert('Error', 'Enter your password'); setLoading(false); return;
         }
 
-        const res = await dispatch(loginThunk(credentials)).unwrap();
-        if (!res?.token) Alert.alert('Login Failed', 'Check your credentials.');
+        // Direct fetch — more reliable than axios on web
+        const response = await fetch('https://distinguished-elegance-production.up.railway.app/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(credentials),
+        });
+        const res = await response.json();
+
+        if (res?.token) {
+          // Save token
+          if (Platform.OS === 'web') {
+            localStorage.setItem('token', res.token);
+            localStorage.setItem('user', JSON.stringify(res));
+          } else {
+            const AS = (await import('@react-native-async-storage/async-storage')).default;
+            await AS.setItem('token', res.token);
+            await AS.setItem('user', JSON.stringify(res));
+          }
+          // Normalize role and dispatch to Redux
+          if (res.role) res.role = res.role.toUpperCase();
+          if (!res.role) res.role = 'USER';
+          dispatch({ type: 'auth/setUser', payload: res });
+          // Navigate to main app
+          navigation.replace('Main');
+        } else {
+          Alert.alert('Login Failed', res?.message || res?.error || 'Check your credentials.');
+        }
 
       } else {
         // Signup validation
@@ -67,8 +92,31 @@ export default function LoginScreen({ navigation }) {
         if (form.phone.trim().length !== 10) { Alert.alert('Error', 'Phone must be 10 digits'); setLoading(false); return; }
         if (!form.password || form.password.length < 6) { Alert.alert('Error', 'Password min 6 chars'); setLoading(false); return; }
 
-        await dispatch(registerThunk({ ...form, role })).unwrap();
-        Alert.alert('✅ Account Created!', 'You are now logged in!');
+        // Direct fetch for registration
+        const regResponse = await fetch('https://distinguished-elegance-production.up.railway.app/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...form, role }),
+        });
+        const regRes = await regResponse.json();
+
+        if (regRes?.token) {
+          if (Platform.OS === 'web') {
+            localStorage.setItem('token', regRes.token);
+            localStorage.setItem('user', JSON.stringify(regRes));
+          } else {
+            const AS = (await import('@react-native-async-storage/async-storage')).default;
+            await AS.setItem('token', regRes.token);
+            await AS.setItem('user', JSON.stringify(regRes));
+          }
+          if (regRes.role) regRes.role = regRes.role.toUpperCase();
+          if (!regRes.role) regRes.role = 'USER';
+          dispatch({ type: 'auth/setUser', payload: regRes });
+          Alert.alert('✅ Account Created!', 'Welcome to HeyMate!');
+          navigation.replace('Main');
+        } else {
+          Alert.alert('Registration Failed', regRes?.message || regRes?.error || 'Try again.');
+        }
       }
     } catch (e) {
       const msg = e?.message || String(e);
