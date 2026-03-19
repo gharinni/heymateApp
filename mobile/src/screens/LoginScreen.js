@@ -33,28 +33,22 @@ export default function LoginScreen({ navigation }) {
   const set = k => v => setForm(f => ({ ...f, [k]: v }));
 
   const handleSubmit = async () => {
-    // Validation
     if (mode === 'login') {
       if (!form.phone.trim() && !form.email.trim()) {
-        Alert.alert('Error', 'Enter your phone number or email');
-        return;
+        Alert.alert('Error', 'Enter your phone number or email'); return;
       }
       if (!form.password.trim()) {
-        Alert.alert('Error', 'Enter your password');
-        return;
+        Alert.alert('Error', 'Enter your password'); return;
       }
     } else {
       if (!form.name.trim()) {
-        Alert.alert('Error', 'Enter your full name');
-        return;
+        Alert.alert('Error', 'Enter your full name'); return;
       }
       if (form.phone.trim().length !== 10) {
-        Alert.alert('Error', 'Enter valid 10-digit phone number');
-        return;
+        Alert.alert('Error', 'Enter valid 10-digit phone number'); return;
       }
       if (form.password.length < 6) {
-        Alert.alert('Error', 'Password must be at least 6 characters');
-        return;
+        Alert.alert('Error', 'Password must be at least 6 characters'); return;
       }
     }
 
@@ -77,7 +71,6 @@ export default function LoginScreen({ navigation }) {
             role:     form.role,
           };
 
-      // 10 second timeout
       const controller = new AbortController();
       const timeout    = setTimeout(() => controller.abort(), 10000);
 
@@ -94,48 +87,29 @@ export default function LoginScreen({ navigation }) {
       let data = {};
       try { data = JSON.parse(text); } catch {}
 
-      // Handle both { token } and { data: { token } }
       const userData = data?.token ? data
         : data?.data?.token ? data.data
         : null;
 
       if (userData?.token) {
-        // Normalize role
         userData.role = (userData.role || 'USER').toUpperCase();
-
-        // Save to storage
         await saveStorage('token', userData.token);
         await saveStorage('user', JSON.stringify(userData));
-
-        // Update Redux — AppNavigator auto switches to dashboard
         dispatch(setUser(userData));
-
       } else {
-        const msg = data?.message
-          || data?.error
-          || data?.data?.message
+        const msg = data?.message || data?.error || data?.data?.message
           || (response.status === 401 ? 'Wrong phone or password'
-            : response.status === 400 ? 'Check your details and try again'
             : response.status === 409 ? 'Phone number already registered'
-            : `Error ${response.status} — try again`);
-
-        Alert.alert(
-          mode === 'login' ? '❌ Login Failed' : '❌ Registration Failed',
-          msg
-        );
+            : response.status === 400 ? 'Check your details and try again'
+            : `Error ${response.status}`);
+        Alert.alert(mode === 'login' ? '❌ Login Failed' : '❌ Registration Failed', msg);
       }
 
     } catch (e) {
       if (e.name === 'AbortError') {
-        Alert.alert(
-          '⏱️ Timeout',
-          'Server took too long to respond.\nCheck your internet connection and try again.'
-        );
+        Alert.alert('⏱️ Timeout', 'Server took too long.\nCheck your internet and try again.');
       } else {
-        Alert.alert(
-          '🔴 Connection Error',
-          'Cannot connect to server.\n\n' + (e.message || 'Unknown error')
-        );
+        Alert.alert('🔴 Connection Error', 'Cannot connect to server.\n' + (e.message || ''));
       }
     } finally {
       setLoading(false);
@@ -159,7 +133,7 @@ export default function LoginScreen({ navigation }) {
         </Text>
       </View>
 
-      {/* Login / Sign Up Toggle */}
+      {/* Mode Toggle */}
       <View style={{
         flexDirection: 'row', backgroundColor: c.card,
         borderRadius: 16, padding: 4, marginBottom: 24,
@@ -174,44 +148,29 @@ export default function LoginScreen({ navigation }) {
               backgroundColor: mode === m.v ? c.primary : 'transparent',
             }}
           >
-            <Text style={{
-              color: mode === m.v ? '#fff' : c.textMuted,
-              fontWeight: '700', fontSize: 15,
-            }}>
+            <Text style={{ color: mode === m.v ? '#fff' : c.textMuted, fontWeight: '700', fontSize: 15 }}>
               {m.l}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Sign Up only fields */}
+      {/* Signup only */}
       {mode === 'signup' && (
         <>
-          {/* Full Name */}
-          <Text style={{ color: c.text, fontWeight: '600', marginBottom: 8 }}>
-            Full Name *
-          </Text>
+          <Text style={{ color: c.text, fontWeight: '600', marginBottom: 8 }}>Full Name *</Text>
           <TextInput
-            style={{
-              borderWidth: 1.5, borderColor: c.border, borderRadius: 14,
-              padding: 16, color: c.text, backgroundColor: c.card,
-              marginBottom: 16, fontSize: 15,
-            }}
+            style={{ borderWidth: 1.5, borderColor: c.border, borderRadius: 14,
+              padding: 16, color: c.text, backgroundColor: c.card, marginBottom: 16, fontSize: 15 }}
             placeholder="Enter your full name"
             placeholderTextColor={c.textMuted}
             value={form.name}
             onChangeText={set('name')}
           />
 
-          {/* Role Selector */}
-          <Text style={{ color: c.text, fontWeight: '600', marginBottom: 8 }}>
-            I am a *
-          </Text>
+          <Text style={{ color: c.text, fontWeight: '600', marginBottom: 8 }}>I am a *</Text>
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-            {[
-              { v: 'USER',     l: '👤 Customer' },
-              { v: 'PROVIDER', l: '🔧 Provider' },
-            ].map(r => (
+            {[{ v: 'USER', l: '👤 Customer' }, { v: 'PROVIDER', l: '🔧 Provider' }].map(r => (
               <TouchableOpacity
                 key={r.v}
                 onPress={() => set('role')(r.v)}
@@ -222,10 +181,7 @@ export default function LoginScreen({ navigation }) {
                   backgroundColor: form.role === r.v ? `${c.success}18` : c.card,
                 }}
               >
-                <Text style={{
-                  color: form.role === r.v ? c.success : c.textMuted,
-                  fontWeight: '700', fontSize: 14,
-                }}>
+                <Text style={{ color: form.role === r.v ? c.success : c.textMuted, fontWeight: '700', fontSize: 14 }}>
                   {r.l}
                 </Text>
               </TouchableOpacity>
@@ -234,16 +190,13 @@ export default function LoginScreen({ navigation }) {
         </>
       )}
 
-      {/* Phone Number */}
+      {/* Phone */}
       <Text style={{ color: c.text, fontWeight: '600', marginBottom: 8 }}>
-        Phone Number {mode === 'signup' ? '*' : ''}
+        Phone Number *
       </Text>
       <TextInput
-        style={{
-          borderWidth: 1.5, borderColor: c.border, borderRadius: 14,
-          padding: 16, color: c.text, backgroundColor: c.card,
-          marginBottom: 16, fontSize: 15,
-        }}
+        style={{ borderWidth: 1.5, borderColor: c.border, borderRadius: 14,
+          padding: 16, color: c.text, backgroundColor: c.card, marginBottom: 16, fontSize: 15 }}
         placeholder="10-digit phone number"
         placeholderTextColor={c.textMuted}
         value={form.phone}
@@ -257,11 +210,8 @@ export default function LoginScreen({ navigation }) {
         Email {mode === 'signup' ? '(optional)' : '(or use phone above)'}
       </Text>
       <TextInput
-        style={{
-          borderWidth: 1.5, borderColor: c.border, borderRadius: 14,
-          padding: 16, color: c.text, backgroundColor: c.card,
-          marginBottom: 16, fontSize: 15,
-        }}
+        style={{ borderWidth: 1.5, borderColor: c.border, borderRadius: 14,
+          padding: 16, color: c.text, backgroundColor: c.card, marginBottom: 16, fontSize: 15 }}
         placeholder="Enter your email"
         placeholderTextColor={c.textMuted}
         value={form.email}
@@ -271,15 +221,10 @@ export default function LoginScreen({ navigation }) {
       />
 
       {/* Password */}
-      <Text style={{ color: c.text, fontWeight: '600', marginBottom: 8 }}>
-        Password *
-      </Text>
+      <Text style={{ color: c.text, fontWeight: '600', marginBottom: 8 }}>Password *</Text>
       <TextInput
-        style={{
-          borderWidth: 1.5, borderColor: c.border, borderRadius: 14,
-          padding: 16, color: c.text, backgroundColor: c.card,
-          marginBottom: 28, fontSize: 15,
-        }}
+        style={{ borderWidth: 1.5, borderColor: c.border, borderRadius: 14,
+          padding: 16, color: c.text, backgroundColor: c.card, marginBottom: 28, fontSize: 15 }}
         placeholder={mode === 'signup' ? 'Minimum 6 characters' : 'Enter your password'}
         placeholderTextColor={c.textMuted}
         value={form.password}
@@ -305,7 +250,7 @@ export default function LoginScreen({ navigation }) {
         }
       </TouchableOpacity>
 
-      {/* Toggle Mode */}
+      {/* Toggle */}
       <TouchableOpacity
         onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}
         style={{ alignItems: 'center', marginTop: 20, padding: 10 }}
