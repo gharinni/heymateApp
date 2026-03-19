@@ -7,7 +7,7 @@ import { useDispatch } from 'react-redux';
 import { setUser } from '../store/authSlice';
 import { useAppTheme } from '../context/AppThemeContext';
 
-const BACKEND = 'https://distinguished-elegance-production.up.railway.app/api';
+const BACKEND = 'https://heymateapp-production.up.railway.app/api'; // ✅ FIXED URL
 
 const saveStorage = async (key, value) => {
   try {
@@ -21,12 +21,12 @@ const saveStorage = async (key, value) => {
 };
 
 export default function LoginScreen({ navigation }) {
-  const dispatch       = useDispatch();
+  const dispatch = useDispatch();
   const { colors: c } = useAppTheme();
 
-  const [mode, setMode]       = useState('login');
+  const [mode, setMode] = useState('login');
   const [loading, setLoading] = useState(false);
-  const [form, setForm]       = useState({
+  const [form, setForm] = useState({
     name: '', phone: '', email: '', password: '', role: 'USER',
   });
 
@@ -35,17 +35,17 @@ export default function LoginScreen({ navigation }) {
   const handleSubmit = async () => {
     if (mode === 'login') {
       if (!form.phone.trim() && !form.email.trim()) {
-        Alert.alert('Error', 'Enter your phone number or email'); return;
+        Alert.alert('Error', 'Enter phone or email'); return;
       }
       if (!form.password.trim()) {
-        Alert.alert('Error', 'Enter your password'); return;
+        Alert.alert('Error', 'Enter password'); return;
       }
     } else {
       if (!form.name.trim()) {
-        Alert.alert('Error', 'Enter your full name'); return;
+        Alert.alert('Error', 'Enter full name'); return;
       }
       if (form.phone.trim().length !== 10) {
-        Alert.alert('Error', 'Enter valid 10-digit phone number'); return;
+        Alert.alert('Error', 'Enter valid phone number'); return;
       }
       if (form.password.length < 6) {
         Alert.alert('Error', 'Password must be at least 6 characters'); return;
@@ -64,53 +64,47 @@ export default function LoginScreen({ navigation }) {
             ? { phone: form.phone.trim(), password: form.password }
             : { email: form.email.trim().toLowerCase(), password: form.password })
         : {
-            name:     form.name.trim(),
-            phone:    form.phone.trim(),
-            email:    form.email.trim().toLowerCase(),
+            name: form.name.trim(),
+            phone: form.phone.trim(),
+            email: form.email.trim().toLowerCase(),
             password: form.password,
-            role:     form.role,
+            role: form.role,
           };
 
-      const controller = new AbortController();
-      const timeout    = setTimeout(() => controller.abort(), 10000);
-
       const response = await fetch(url, {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(body),
-        signal:  controller.signal,
+        body: JSON.stringify(body),
       });
 
-      clearTimeout(timeout);
+      const data = await response.json();
 
-      const text = await response.text();
-      let data = {};
-      try { data = JSON.parse(text); } catch {}
+      console.log("LOGIN RESPONSE:", data); // ✅ DEBUG
 
-      const userData = data?.token ? data
-        : data?.data?.token ? data.data
-        : null;
+      if (data?.token || data?.data?.token) {
 
-      if (userData?.token) {
+        const userData = data.token ? data : data.data;
+
         userData.role = (userData.role || 'USER').toUpperCase();
+
         await saveStorage('token', userData.token);
         await saveStorage('user', JSON.stringify(userData));
+
         dispatch(setUser(userData));
+
+        // ✅ MAIN FIX: NAVIGATION
+        navigation.replace('Dashboard');
+
       } else {
-        const msg = data?.message || data?.error || data?.data?.message
-          || (response.status === 401 ? 'Wrong phone or password'
-            : response.status === 409 ? 'Phone number already registered'
-            : response.status === 400 ? 'Check your details and try again'
-            : `Error ${response.status}`);
-        Alert.alert(mode === 'login' ? '❌ Login Failed' : '❌ Registration Failed', msg);
+        Alert.alert(
+          mode === 'login' ? 'Login Failed' : 'Registration Failed',
+          data?.message || 'Something went wrong'
+        );
       }
 
     } catch (e) {
-      if (e.name === 'AbortError') {
-        Alert.alert('⏱️ Timeout', 'Server took too long.\nCheck your internet and try again.');
-      } else {
-        Alert.alert('🔴 Connection Error', 'Cannot connect to server.\n' + (e.message || ''));
-      }
+      Alert.alert('Error', 'Server not reachable');
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -120,147 +114,84 @@ export default function LoginScreen({ navigation }) {
     <ScrollView
       style={{ flex: 1, backgroundColor: c.bg }}
       contentContainerStyle={{ padding: 24, paddingTop: 60 }}
-      keyboardShouldPersistTaps="handled"
     >
-      {/* Logo */}
+
       <View style={{ alignItems: 'center', marginBottom: 36 }}>
         <Text style={{ fontSize: 52 }}>⚡</Text>
-        <Text style={{ fontSize: 34, fontWeight: '800', color: c.primary, marginTop: 8 }}>
+        <Text style={{ fontSize: 34, fontWeight: '800', color: c.primary }}>
           HeyMate
-        </Text>
-        <Text style={{ color: c.textMuted, fontSize: 14, marginTop: 6 }}>
-          One App · Any Task · Any Time
         </Text>
       </View>
 
-      {/* Mode Toggle */}
+      {/* Toggle */}
       <View style={{
         flexDirection: 'row', backgroundColor: c.card,
         borderRadius: 16, padding: 4, marginBottom: 24,
-        borderWidth: 1, borderColor: c.border,
       }}>
-        {[{ v: 'login', l: '🔑 Login' }, { v: 'signup', l: '✍️ Sign Up' }].map(m => (
+        {['login', 'signup'].map(m => (
           <TouchableOpacity
-            key={m.v}
-            onPress={() => setMode(m.v)}
+            key={m}
+            onPress={() => setMode(m)}
             style={{
-              flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center',
-              backgroundColor: mode === m.v ? c.primary : 'transparent',
+              flex: 1, padding: 12,
+              backgroundColor: mode === m ? c.primary : 'transparent',
+              borderRadius: 12,
+              alignItems: 'center'
             }}
           >
-            <Text style={{ color: mode === m.v ? '#fff' : c.textMuted, fontWeight: '700', fontSize: 15 }}>
-              {m.l}
+            <Text style={{ color: mode === m ? '#fff' : c.textMuted }}>
+              {m === 'login' ? 'Login' : 'Sign Up'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Signup only */}
       {mode === 'signup' && (
-        <>
-          <Text style={{ color: c.text, fontWeight: '600', marginBottom: 8 }}>Full Name *</Text>
-          <TextInput
-            style={{ borderWidth: 1.5, borderColor: c.border, borderRadius: 14,
-              padding: 16, color: c.text, backgroundColor: c.card, marginBottom: 16, fontSize: 15 }}
-            placeholder="Enter your full name"
-            placeholderTextColor={c.textMuted}
-            value={form.name}
-            onChangeText={set('name')}
-          />
-
-          <Text style={{ color: c.text, fontWeight: '600', marginBottom: 8 }}>I am a *</Text>
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-            {[{ v: 'USER', l: '👤 Customer' }, { v: 'PROVIDER', l: '🔧 Provider' }].map(r => (
-              <TouchableOpacity
-                key={r.v}
-                onPress={() => set('role')(r.v)}
-                style={{
-                  flex: 1, padding: 14, borderRadius: 14, alignItems: 'center',
-                  borderWidth: 2,
-                  borderColor: form.role === r.v ? c.success : c.border,
-                  backgroundColor: form.role === r.v ? `${c.success}18` : c.card,
-                }}
-              >
-                <Text style={{ color: form.role === r.v ? c.success : c.textMuted, fontWeight: '700', fontSize: 14 }}>
-                  {r.l}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
+        <TextInput
+          placeholder="Full Name"
+          value={form.name}
+          onChangeText={set('name')}
+          style={{ marginBottom: 10, padding: 12, borderWidth: 1 }}
+        />
       )}
 
-      {/* Phone */}
-      <Text style={{ color: c.text, fontWeight: '600', marginBottom: 8 }}>
-        Phone Number *
-      </Text>
       <TextInput
-        style={{ borderWidth: 1.5, borderColor: c.border, borderRadius: 14,
-          padding: 16, color: c.text, backgroundColor: c.card, marginBottom: 16, fontSize: 15 }}
-        placeholder="10-digit phone number"
-        placeholderTextColor={c.textMuted}
+        placeholder="Phone"
         value={form.phone}
         onChangeText={set('phone')}
-        keyboardType="phone-pad"
-        maxLength={10}
+        style={{ marginBottom: 10, padding: 12, borderWidth: 1 }}
       />
 
-      {/* Email */}
-      <Text style={{ color: c.text, fontWeight: '600', marginBottom: 8 }}>
-        Email {mode === 'signup' ? '(optional)' : '(or use phone above)'}
-      </Text>
       <TextInput
-        style={{ borderWidth: 1.5, borderColor: c.border, borderRadius: 14,
-          padding: 16, color: c.text, backgroundColor: c.card, marginBottom: 16, fontSize: 15 }}
-        placeholder="Enter your email"
-        placeholderTextColor={c.textMuted}
+        placeholder="Email"
         value={form.email}
         onChangeText={set('email')}
-        keyboardType="email-address"
-        autoCapitalize="none"
+        style={{ marginBottom: 10, padding: 12, borderWidth: 1 }}
       />
 
-      {/* Password */}
-      <Text style={{ color: c.text, fontWeight: '600', marginBottom: 8 }}>Password *</Text>
       <TextInput
-        style={{ borderWidth: 1.5, borderColor: c.border, borderRadius: 14,
-          padding: 16, color: c.text, backgroundColor: c.card, marginBottom: 28, fontSize: 15 }}
-        placeholder={mode === 'signup' ? 'Minimum 6 characters' : 'Enter your password'}
-        placeholderTextColor={c.textMuted}
+        placeholder="Password"
+        secureTextEntry
         value={form.password}
         onChangeText={set('password')}
-        secureTextEntry
-        autoCapitalize="none"
+        style={{ marginBottom: 20, padding: 12, borderWidth: 1 }}
       />
 
-      {/* Submit Button */}
       <TouchableOpacity
         onPress={handleSubmit}
         disabled={loading}
         style={{
-          backgroundColor: loading ? c.textMuted : c.primary,
-          borderRadius: 16, padding: 18, alignItems: 'center',
+          backgroundColor: c.primary,
+          padding: 15,
+          borderRadius: 10,
+          alignItems: 'center'
         }}
       >
         {loading
-          ? <ActivityIndicator color="#fff" size="large" />
-          : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 17 }}>
-              {mode === 'login' ? '🚀 Login' : '✅ Create Account'}
-            </Text>
-        }
-      </TouchableOpacity>
-
-      {/* Toggle */}
-      <TouchableOpacity
-        onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}
-        style={{ alignItems: 'center', marginTop: 20, padding: 10 }}
-      >
-        <Text style={{ color: c.textMuted, fontSize: 14 }}>
-          {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
-          <Text style={{ color: c.primary, fontWeight: '700' }}>
-            {mode === 'login' ? 'Register Now' : 'Login'}
-          </Text>
-        </Text>
+          ? <ActivityIndicator color="#fff" />
+          : <Text style={{ color: '#fff' }}>
+              {mode === 'login' ? 'Login' : 'Register'}
+            </Text>}
       </TouchableOpacity>
 
     </ScrollView>
