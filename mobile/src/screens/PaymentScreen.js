@@ -7,7 +7,6 @@ import { useAppTheme } from '../context/AppThemeContext';
 
 const BACKEND = 'https://distinguished-elegance-production.up.railway.app/api';
 
-
 const getToken = async () => {
   if (Platform.OS === 'web') return localStorage.getItem('token');
   const AS = (await import('@react-native-async-storage/async-storage')).default;
