@@ -1,18 +1,17 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { Platform } from 'react-native';
 
-const saveToStorage = async (key, value) => {
+const save = async (key, val) => {
   try {
-    if (Platform.OS === 'web') {
-      localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
-    } else {
+    if (Platform.OS === 'web') localStorage.setItem(key, val);
+    else {
       const AS = (await import('@react-native-async-storage/async-storage')).default;
-      await AS.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+      await AS.setItem(key, val);
     }
   } catch {}
 };
 
-const removeFromStorage = async (key) => {
+const remove = async (key) => {
   try {
     if (Platform.OS === 'web') localStorage.removeItem(key);
     else {
@@ -27,20 +26,19 @@ const authSlice = createSlice({
   initialState: { user: null, token: null },
   reducers: {
     setUser: (state, action) => {
-      const userData = action.payload;
-      if (userData) {
-        state.user  = userData;
-        state.token = userData.token || state.token;
-        // Save to storage async (no await in reducer)
-        saveToStorage('user', JSON.stringify(userData));
-        if (userData.token) saveToStorage('token', userData.token);
+      state.user  = action.payload;
+      state.token = action.payload?.token || null;
+      // Persist async
+      if (action.payload) {
+        save('user', JSON.stringify(action.payload));
+        if (action.payload.token) save('token', action.payload.token);
       }
     },
     logout: (state) => {
       state.user  = null;
       state.token = null;
-      removeFromStorage('user');
-      removeFromStorage('token');
+      remove('user');
+      remove('token');
     },
   },
 });
