@@ -7,9 +7,7 @@ import { Text } from 'react-native';
 import { useSelector } from 'react-redux';
 import { useAppTheme } from '../context/AppThemeContext';
 
-// ── Screens ───────────────────────────────────────────────
 import LoginScreen                from '../screens/LoginScreen';
-import DashboardScreen            from '../screens/DashboardScreen';
 import HomeScreen                 from '../screens/HomeScreen';
 import ProfileScreen              from '../screens/ProfileScreen';
 import EmergencyScreen            from '../screens/EmergencyScreen';
@@ -28,12 +26,12 @@ import ProviderScreen             from '../screens/ProviderScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import HelpSupportScreen          from '../screens/HelpSupportScreen';
 import RateAppScreen              from '../screens/RateAppScreen';
+import DashboardScreen            from '../screens/DashboardScreen';
 
 const Stack = createStackNavigator();
 const Tab   = createBottomTabNavigator();
 const isWeb = Platform.OS === 'web';
 
-// ── Tab Icon ──────────────────────────────────────────────
 function TabIcon({ emoji, label, focused, color }) {
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -47,8 +45,7 @@ function TabIcon({ emoji, label, focused, color }) {
   );
 }
 
-// ── Tab Bar Style ─────────────────────────────────────────
-const tabBarStyle = (colors) => ({
+const tabBarOpts = (colors) => ({
   headerShown: false,
   tabBarStyle: {
     backgroundColor: colors.card,
@@ -61,71 +58,55 @@ const tabBarStyle = (colors) => ({
   tabBarShowLabel: !isWeb,
 });
 
-// ── User Tabs ─────────────────────────────────────────────
 function UserTabs() {
   const { colors } = useAppTheme();
   return (
-    <Tab.Navigator screenOptions={tabBarStyle(colors)}>
-      <Tab.Screen name="Home"
-        component={HomeScreen}
+    <Tab.Navigator screenOptions={tabBarOpts(colors)}>
+      <Tab.Screen name="Home"      component={HomeScreen}
         options={{ tabBarIcon: p => <TabIcon emoji="🏠" label="Home"      {...p} />, tabBarLabel: 'Home' }} />
-      <Tab.Screen name="Request"
-        component={RequestScreen}
+      <Tab.Screen name="Request"   component={RequestScreen}
         options={{ tabBarIcon: p => <TabIcon emoji="📋" label="Requests"  {...p} />, tabBarLabel: 'Requests' }} />
-      <Tab.Screen name="NearbyMap"
-        component={NearbyMapScreen}
+      <Tab.Screen name="NearbyMap" component={NearbyMapScreen}
         options={{ tabBarIcon: p => <TabIcon emoji="🗺️" label="Nearby"   {...p} />, tabBarLabel: 'Nearby' }} />
-      <Tab.Screen name="Emergency"
-        component={EmergencyScreen}
+      <Tab.Screen name="Emergency" component={EmergencyScreen}
         options={{ tabBarIcon: p => <TabIcon emoji="🚨" label="Emergency" {...p} />, tabBarLabel: 'Emergency' }} />
-      <Tab.Screen name="Profile"
-        component={ProfileScreen}
+      <Tab.Screen name="Profile"   component={ProfileScreen}
         options={{ tabBarIcon: p => <TabIcon emoji="👤" label="Profile"   {...p} />, tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
 }
 
-// ── Provider Tabs ─────────────────────────────────────────
 function ProviderTabs() {
   const { colors } = useAppTheme();
   return (
-    <Tab.Navigator screenOptions={tabBarStyle(colors)}>
-      <Tab.Screen name="ProviderDashboard"
-        component={ProviderDashboard}
+    <Tab.Navigator screenOptions={tabBarOpts(colors)}>
+      <Tab.Screen name="ProviderDashboard" component={ProviderDashboard}
         options={{ tabBarIcon: p => <TabIcon emoji="📊" label="Dashboard" {...p} />, tabBarLabel: 'Dashboard' }} />
-      <Tab.Screen name="ProviderScreen"
-        component={ProviderScreen}
+      <Tab.Screen name="ProviderScreen"    component={ProviderScreen}
         options={{ tabBarIcon: p => <TabIcon emoji="🔧" label="Jobs"      {...p} />, tabBarLabel: 'Jobs' }} />
-      <Tab.Screen name="NearbyMap"
-        component={NearbyMapScreen}
+      <Tab.Screen name="NearbyMap"         component={NearbyMapScreen}
         options={{ tabBarIcon: p => <TabIcon emoji="🗺️" label="Nearby"   {...p} />, tabBarLabel: 'Nearby' }} />
-      <Tab.Screen name="Emergency"
-        component={EmergencyScreen}
+      <Tab.Screen name="Emergency"         component={EmergencyScreen}
         options={{ tabBarIcon: p => <TabIcon emoji="🚨" label="Emergency" {...p} />, tabBarLabel: 'Emergency' }} />
-      <Tab.Screen name="Profile"
-        component={ProfileScreen}
+      <Tab.Screen name="Profile"           component={ProfileScreen}
         options={{ tabBarIcon: p => <TabIcon emoji="👤" label="Profile"   {...p} />, tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
 }
 
-// ── Web Wrapper ───────────────────────────────────────────
 function WebWrapper({ children }) {
   if (!isWeb) return children;
   return (
     <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{
-        width: 420, maxWidth: '100%', height: '100%',
+      <View style={{ width: 420, maxWidth: '100%', height: '100%',
         overflow: 'hidden', position: 'relative',
-        boxShadow: '0 0 40px rgba(0,0,0,0.5)',
-      }}>
+        boxShadow: '0 0 40px rgba(0,0,0,0.5)' }}>
         {children}
       </View>
     </View>
   );
 }
 
-// ── App Navigator ─────────────────────────────────────────
 export default function AppNavigator() {
   const { user }   = useSelector(s => s.auth);
   const { colors } = useAppTheme();
@@ -141,43 +122,25 @@ export default function AppNavigator() {
           ) : (
             // ── Logged in ──────────────────────────────────
             <>
-              {/* Main Tabs */}
               <Stack.Screen name="Main"
                 component={isProvider ? ProviderTabs : UserTabs} />
-
-              {/* Dashboard */}
-              <Stack.Screen name="Dashboard"         component={DashboardScreen} />
-
-              {/* Home */}
-              <Stack.Screen name="Home"              component={HomeScreen} />
-
-              {/* Booking Flow */}
-              <Stack.Screen name="ServiceProviders"  component={ServiceProvidersScreen} />
-              <Stack.Screen name="Booking"           component={BookingScreen} />
-              <Stack.Screen name="BookingConfirm"    component={BookingConfirmScreen} />
-              <Stack.Screen name="BookingStatus"     component={BookingStatusScreen} />
-              <Stack.Screen name="Tracking"          component={TrackingScreen} />
-              <Stack.Screen name="Payment"           component={PaymentScreen} />
-              <Stack.Screen name="Feedback"          component={FeedbackScreen} />
-
-              {/* Request */}
-              <Stack.Screen name="Request"           component={RequestScreen} />
-
-              {/* Provider */}
-              <Stack.Screen name="ProviderScreen"    component={ProviderScreen} />
-
-              {/* Map */}
-              <Stack.Screen name="NearbyMap"         component={NearbyMapScreen} />
-              <Stack.Screen name="NearbySettings"    component={NearbySettingsScreen} />
-
-              {/* Emergency */}
-              <Stack.Screen name="Emergency"         component={EmergencyScreen} />
-
-              {/* Profile & Settings */}
-              <Stack.Screen name="Profile"           component={ProfileScreen} />
+              <Stack.Screen name="Dashboard"            component={DashboardScreen} />
+              <Stack.Screen name="Home"                 component={HomeScreen} />
+              <Stack.Screen name="ServiceProviders"     component={ServiceProvidersScreen} />
+              <Stack.Screen name="Booking"              component={BookingScreen} />
+              <Stack.Screen name="BookingConfirm"       component={BookingConfirmScreen} />
+              <Stack.Screen name="BookingStatus"        component={BookingStatusScreen} />
+              <Stack.Screen name="Tracking"             component={TrackingScreen} />
+              <Stack.Screen name="Payment"              component={PaymentScreen} />
+              <Stack.Screen name="Feedback"             component={FeedbackScreen} />
+              <Stack.Screen name="Request"              component={RequestScreen} />
+              <Stack.Screen name="NearbyMap"            component={NearbyMapScreen} />
+              <Stack.Screen name="NearbySettings"       component={NearbySettingsScreen} />
+              <Stack.Screen name="Emergency"            component={EmergencyScreen} />
+              <Stack.Screen name="Profile"              component={ProfileScreen} />
               <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
-              <Stack.Screen name="HelpSupport"       component={HelpSupportScreen} />
-              <Stack.Screen name="RateApp"           component={RateAppScreen} />
+              <Stack.Screen name="HelpSupport"          component={HelpSupportScreen} />
+              <Stack.Screen name="RateApp"              component={RateAppScreen} />
             </>
           )}
         </Stack.Navigator>

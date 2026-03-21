@@ -1,76 +1,43 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import { Provider, useSelector } from 'react-redux';
+import { Platform, View, ActivityIndicator } from 'react-native';
+import { Provider } from 'react-redux';
 import { store } from './src/store';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
-import LoginScreen from './src/screens/LoginScreen';
-import DashboardScreen from './src/screens/DashboardScreen';
-
-import { authAPI } from './src/api/auth.api';
+import AppNavigator from './src/navigation/AppNavigator';
 import { setUser } from './src/store/authSlice';
 import { StatusBar } from 'expo-status-bar';
 import { AppThemeProvider } from './src/context/AppThemeContext';
 
-const Stack = createNativeStackNavigator();
-
-
-// 🔹 This component controls navigation based on login state
-function RootNavigator() {
-  const user = useSelector(state => state.auth.user);
-
-  return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-
-        {user ? (
-          // ✅ If logged in → go to Dashboard
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        ) : (
-          // ❌ If not logged in → stay in Login
-          <Stack.Screen name="Login" component={LoginScreen} />
-        )}
-
-      </Stack.Navigator>
-    </NavigationContainer>
-  );
-}
-
+const getStoredUser = async () => {
+  try {
+    if (Platform.OS === 'web') {
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    } else {
+      const AS = (await import('@react-native-async-storage/async-storage')).default;
+      const u  = await AS.getItem('user');
+      return u ? JSON.parse(u) : null;
+    }
+  } catch { return null; }
+};
 
 export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const rehydrate = async () => {
-      try {
-        const user = await authAPI.getStoredUser();
-
-        if (user) {
-          if (user.role) user.role = user.role.toUpperCase();
-          if (!user.role) user.role = 'USER';
-
-          store.dispatch(setUser(user));
-        }
-      } catch (e) {
-        console.log("Rehydrate error:", e);
+    getStoredUser().then(user => {
+      if (user) {
+        if (user.role) user.role = user.role.toUpperCase();
+        else user.role = 'USER';
+        store.dispatch(setUser(user));
       }
-
       setReady(true);
-    };
-
-    rehydrate();
+    });
   }, []);
 
-  // ⏳ Loading screen
   if (!ready) {
     return (
-      <View style={{
-        flex: 1,
-        backgroundColor: '#0D0D1A',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
+      <View style={{ flex: 1, backgroundColor: '#0D0D1A',
+        alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color="#FF5722" />
       </View>
     );
@@ -80,7 +47,7 @@ export default function App() {
     <Provider store={store}>
       <AppThemeProvider>
         <StatusBar style="auto" />
-        <RootNavigator /> {/* ✅ IMPORTANT CHANGE */}
+        <AppNavigator />
       </AppThemeProvider>
     </Provider>
   );
