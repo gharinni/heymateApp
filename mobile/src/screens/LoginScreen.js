@@ -24,11 +24,6 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!password || (!phone && !email)) {
-      alert('Enter phone/email and password');
-      return;
-    }
-
     try {
       setLoading(true);
 
@@ -40,12 +35,11 @@ export default function LoginScreen() {
 
       dispatch(setUser(user));
 
-      // 🚀 Navigate to Dashboard
       navigation.replace('Dashboard');
 
     } catch (error) {
-      console.log(error);
-      alert('Login failed. Check credentials.');
+      console.log("ERROR:", error?.response?.data || error.message);
+      alert(error?.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -54,57 +48,37 @@ export default function LoginScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>HeyMate</Text>
-      <Text style={styles.subtitle}>One App • Any Task • Any Time</Text>
 
-      {/* Phone */}
-      <Text style={styles.label}>Phone Number</Text>
       <TextInput
         style={styles.input}
-        placeholder="Enter phone"
-        placeholderTextColor="#aaa"
+        placeholder="Phone"
         value={phone}
         onChangeText={setPhone}
-        keyboardType="numeric"
       />
 
-      {/* Email */}
-      <Text style={styles.label}>Email (optional)</Text>
       <TextInput
         style={styles.input}
-        placeholder="Enter email"
-        placeholderTextColor="#aaa"
+        placeholder="Email (optional)"
         value={email}
         onChangeText={setEmail}
       />
 
-      {/* Password */}
-      <Text style={styles.label}>Password</Text>
       <TextInput
         style={styles.input}
-        placeholder="Enter password"
-        placeholderTextColor="#aaa"
+        placeholder="Password"
+        secureTextEntry
         value={password}
         onChangeText={setPassword}
-        secureTextEntry
       />
 
-      {/* Button */}
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleLogin}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Login</Text>
-        )}
+      <TouchableOpacity style={styles.button} onPress={handleLogin}>
+        {loading ? <ActivityIndicator color="#fff" /> :
+          <Text style={styles.buttonText}>Login</Text>}
       </TouchableOpacity>
 
-      {/* Register */}
       <TouchableOpacity onPress={() => navigation.navigate('Register')}>
         <Text style={styles.register}>
-          Don't have an account? Register Now
+          Don't have an account? Register
         </Text>
       </TouchableOpacity>
     </ScrollView>
@@ -112,49 +86,10 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    backgroundColor: '#0D0D1A',
-    padding: 20,
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 32,
-    color: '#FF5722',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  subtitle: {
-    color: '#aaa',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  label: {
-    color: '#fff',
-    marginBottom: 5,
-    marginTop: 10,
-  },
-  input: {
-    backgroundColor: '#1E1E2F',
-    color: '#fff',
-    padding: 12,
-    borderRadius: 8,
-  },
-  button: {
-    backgroundColor: '#FF5722',
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  register: {
-    color: '#FF5722',
-    textAlign: 'center',
-    marginTop: 20,
-  },
+  container: { flexGrow: 1, justifyContent: 'center', padding: 20, backgroundColor: '#0D0D1A' },
+  title: { fontSize: 30, color: '#FF5722', textAlign: 'center', marginBottom: 20 },
+  input: { backgroundColor: '#1E1E2F', color: '#fff', padding: 12, marginVertical: 10, borderRadius: 8 },
+  button: { backgroundColor: '#FF5722', padding: 15, borderRadius: 10, alignItems: 'center' },
+  buttonText: { color: '#fff', fontWeight: 'bold' },
+  register: { color: '#FF5722', textAlign: 'center', marginTop: 20 }
 });
