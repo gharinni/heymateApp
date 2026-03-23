@@ -3,160 +3,179 @@ import {
   View, Text, TextInput, TouchableOpacity,
   Alert, ActivityIndicator, ScrollView, Platform,
 } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import { setUser } from '../store/authSlice';
 
+// ── Direct Backend URL ────────────────────────────────────
 const BACKEND = 'https://distinguished-elegance-production.up.railway.app/api';
 
-const COLORS = {
+const C = {
   bg:'#0D0D1A', card:'#1A1A2E', primary:'#FF5722',
   success:'#4CAF50', border:'#2A2A3E',
-  text:'#FFFFFF', textMuted:'#9CA3AF', input:'#1E1E30',
+  text:'#FFFFFF', muted:'#9CA3AF', input:'#1E1E30',
 };
 
-const saveStorage = async (key, value) => {
+// Save token to storage
+const save = async (key, val) => {
   try {
-    if (Platform.OS === 'web') localStorage.setItem(key, value);
-    else {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, val);
+    } else {
       const AS = (await import('@react-native-async-storage/async-storage')).default;
-      await AS.setItem(key, value);
+      await AS.setItem(key, val);
     }
-  } catch {}
+  } catch(e) {}
 };
 
-export default function LoginScreen() {
-  const dispatch = useDispatch();
-  const user     = useSelector(s => s.auth.user);
-
+export default function LoginScreen({ navigation }) {
   const [mode, setMode]       = useState('login');
   const [loading, setLoading] = useState(false);
-  const [form, setForm]       = useState({
-    name:'', phone:'', email:'', password:'', role:'USER',
-  });
-  const set = k => v => setForm(f => ({ ...f, [k]: v }));
+  const [name, setName]       = useState('');
+  const [phone, setPhone]     = useState('');
+  const [email, setEmail]     = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole]       = useState('USER');
 
-  const handleSubmit = async () => {
+  const submit = async () => {
+    // Validate
     if (mode === 'login') {
-      if (!form.phone.trim() && !form.email.trim()) {
-        Alert.alert('Error', 'Enter your phone or email'); return;
-      }
-      if (!form.password) { Alert.alert('Error', 'Enter password'); return; }
+      if (!phone.trim() && !email.trim()) { Alert.alert('Error', 'Enter phone or email'); return; }
+      if (!password) { Alert.alert('Error', 'Enter password'); return; }
     } else {
-      if (!form.name.trim()) { Alert.alert('Error', 'Enter your name'); return; }
-      if (form.phone.trim().length !== 10) { Alert.alert('Error', 'Enter 10-digit phone'); return; }
-      if (form.password.length < 6) { Alert.alert('Error', 'Password min 6 chars'); return; }
+      if (!name.trim()) { Alert.alert('Error', 'Enter your name'); return; }
+      if (phone.length !== 10) { Alert.alert('Error', '10-digit phone required'); return; }
+      if (password.length < 6) { Alert.alert('Error', 'Password min 6 chars'); return; }
     }
 
     setLoading(true);
+
     try {
-      const url  = mode === 'login' ? `${BACKEND}/auth/login` : `${BACKEND}/auth/register`;
+      const url  = mode === 'login'
+        ? `${BACKEND}/auth/login`
+        : `${BACKEND}/auth/register`;
+
       const body = mode === 'login'
-        ? (form.phone.trim()
-            ? { phone: form.phone.trim(), password: form.password }
-            : { email: form.email.trim().toLowerCase(), password: form.password })
-        : { name: form.name.trim(), phone: form.phone.trim(),
-            email: form.email.trim().toLowerCase(),
-            password: form.password, role: form.role };
+        ? (phone ? { phone: phone.trim(), password } : { email: email.trim().toLowerCase(), password })
+        : { name: name.trim(), phone: phone.trim(), email: email.trim().toLowerCase(), password, role };
 
+      // Set 10 second timeout
       const controller = new AbortController();
-      const timeout    = setTimeout(() => controller.abort(), 10000);
+      const timer = setTimeout(() => controller.abort(), 10000);
 
-      const res = await fetch(url, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
         signal: controller.signal,
       });
-      clearTimeout(timeout);
 
-      const text = await res.text();
+      clearTimeout(timer);
+
+      const text = await response.text();
       let data = {};
       try { data = JSON.parse(text); } catch {}
 
-      const userData = data?.token ? data
+      // Handle response formats
+      const user = data?.token ? data
         : data?.data?.token ? data.data
         : null;
 
-      if (userData?.token) {
-        userData.role = (userData.role || 'USER').toUpperCase();
+      if (user?.token) {
+        // Normalize role
+        user.role = (user.role || 'USER').toUpperCase();
 
-        // Save to storage first
-        await saveStorage('token', userData.token);
-        await saveStorage('user', JSON.stringify(userData));
+        // Save to storage
+        await save('token', user.token);
+        await save('user', JSON.stringify(user));
 
-        // Then dispatch — AppNavigator auto-switches to Main
-        dispatch(setUser(userData));
+        // Navigate to Main - force navigation
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
 
       } else {
-        const msg = data?.message || data?.error
-          || (res.status === 401 ? 'Wrong phone or password'
-            : res.status === 409 ? 'Phone already registered'
-            : res.status === 400 ? 'Check your details'
-            : `Server error (${res.status})`);
+        const msg = data?.message || data?.error || data?.data?.message
+          || (response.status === 401 ? 'Wrong phone or password'
+            : response.status === 409 ? 'Phone already registered'
+            : response.status === 400 ? 'Check your details'
+            : `Server error (${response.status})`);
         Alert.alert(mode === 'login' ? 'Login Failed' : 'Registration Failed', msg);
       }
+
     } catch (e) {
-      if (e.name === 'AbortError')
-        Alert.alert('Timeout', 'Server too slow. Try again.');
-      else
-        Alert.alert('Error', 'Cannot connect.\n' + (e.message || ''));
-    } finally { setLoading(false); }
+      if (e.name === 'AbortError') {
+        Alert.alert('Timeout', 'Server too slow. Check internet and try again.');
+      } else {
+        Alert.alert('Connection Error', 'Cannot reach server.\n' + (e.message || ''));
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inp = {
-    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12,
-    padding: 14, fontSize: 16, backgroundColor: COLORS.input,
+    borderWidth: 1.5, borderColor: C.border, borderRadius: 12,
+    padding: 14, fontSize: 16, backgroundColor: C.input,
     color: '#FFFFFF', marginBottom: 14,
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: COLORS.bg }}
+    <ScrollView
+      style={{ flex: 1, backgroundColor: C.bg }}
       contentContainerStyle={{ padding: 24, paddingTop: 60 }}
-      keyboardShouldPersistTaps="handled">
-
-      <View style={{ alignItems: 'center', marginBottom: 40 }}>
-        <Text style={{ fontSize: 56 }}>⚡</Text>
-        <Text style={{ fontSize: 36, fontWeight: '800', color: COLORS.primary, marginTop: 8 }}>
+      keyboardShouldPersistTaps="handled"
+    >
+      {/* Logo */}
+      <View style={{ alignItems: 'center', marginBottom: 36 }}>
+        <Text style={{ fontSize: 54 }}>⚡</Text>
+        <Text style={{ fontSize: 36, fontWeight: '800', color: C.primary, marginTop: 8 }}>
           HeyMate
         </Text>
-        <Text style={{ color: COLORS.textMuted, fontSize: 14, marginTop: 6 }}>
+        <Text style={{ color: C.muted, fontSize: 14, marginTop: 4 }}>
           One App · Any Task · Any Time
         </Text>
       </View>
 
-      {/* Toggle */}
-      <View style={{ flexDirection: 'row', backgroundColor: COLORS.card,
-        borderRadius: 16, padding: 4, marginBottom: 28,
-        borderWidth: 1, borderColor: COLORS.border }}>
+      {/* Login / Signup toggle */}
+      <View style={{ flexDirection: 'row', backgroundColor: C.card,
+        borderRadius: 14, padding: 4, marginBottom: 24,
+        borderWidth: 1, borderColor: C.border }}>
         {[{ v: 'login', l: 'Login' }, { v: 'signup', l: 'Sign Up' }].map(m => (
           <TouchableOpacity key={m.v} onPress={() => setMode(m.v)}
-            style={{ flex: 1, paddingVertical: 13, borderRadius: 12,
+            style={{ flex: 1, paddingVertical: 12, borderRadius: 10,
               alignItems: 'center',
-              backgroundColor: mode === m.v ? COLORS.primary : 'transparent' }}>
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{m.l}</Text>
+              backgroundColor: mode === m.v ? C.primary : 'transparent' }}>
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
+              {m.l}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Signup */}
+      {/* Signup only */}
       {mode === 'signup' && (
         <>
-          <Text style={{ color: COLORS.text, fontWeight: '600', marginBottom: 8 }}>Full Name *</Text>
-          <TextInput style={inp} placeholder="Enter your full name"
-            placeholderTextColor={COLORS.textMuted}
-            value={form.name} onChangeText={set('name')} />
+          <Text style={{ color: C.text, fontWeight: '600', marginBottom: 8 }}>
+            Full Name *
+          </Text>
+          <TextInput style={inp}
+            placeholder="Enter your name"
+            placeholderTextColor={C.muted}
+            value={name} onChangeText={setName}
+          />
 
-          <Text style={{ color: COLORS.text, fontWeight: '600', marginBottom: 8 }}>I am a *</Text>
+          <Text style={{ color: C.text, fontWeight: '600', marginBottom: 8 }}>
+            I am a *
+          </Text>
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
             {[{ v: 'USER', l: '👤 Customer' }, { v: 'PROVIDER', l: '🔧 Provider' }].map(r => (
-              <TouchableOpacity key={r.v} onPress={() => set('role')(r.v)}
+              <TouchableOpacity key={r.v} onPress={() => setRole(r.v)}
                 style={{ flex: 1, padding: 14, borderRadius: 12, alignItems: 'center',
                   borderWidth: 2,
-                  borderColor: form.role === r.v ? COLORS.success : COLORS.border,
-                  backgroundColor: form.role === r.v ? '#1a3a1a' : COLORS.card }}>
-                <Text style={{ color: form.role === r.v ? COLORS.success : COLORS.textMuted,
-                  fontWeight: '700' }}>
-                  {form.role === r.v ? '✓ ' : ''}{r.l}
+                  borderColor: role === r.v ? C.success : C.border,
+                  backgroundColor: role === r.v ? '#0a2a0a' : C.card }}>
+                <Text style={{ color: role === r.v ? C.success : C.muted,
+                  fontWeight: '700', fontSize: 14 }}>
+                  {role === r.v ? '✓ ' : ''}{r.l}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -164,42 +183,68 @@ export default function LoginScreen() {
         </>
       )}
 
-      <Text style={{ color: COLORS.text, fontWeight: '600', marginBottom: 8 }}>Phone Number *</Text>
-      <TextInput style={inp} placeholder="10-digit phone number"
-        placeholderTextColor={COLORS.textMuted}
-        value={form.phone} onChangeText={set('phone')}
-        keyboardType="phone-pad" maxLength={10} />
+      {/* Phone */}
+      <Text style={{ color: C.text, fontWeight: '600', marginBottom: 8 }}>
+        Phone Number *
+      </Text>
+      <TextInput style={inp}
+        placeholder="10-digit phone number"
+        placeholderTextColor={C.muted}
+        value={phone}
+        onChangeText={t => setPhone(t.replace(/\D/g, '').slice(0, 10))}
+        keyboardType="phone-pad"
+        maxLength={10}
+      />
 
-      <Text style={{ color: COLORS.text, fontWeight: '600', marginBottom: 8 }}>
+      {/* Email */}
+      <Text style={{ color: C.text, fontWeight: '600', marginBottom: 8 }}>
         Email {mode === 'signup' ? '(optional)' : '(or use phone above)'}
       </Text>
-      <TextInput style={inp} placeholder="Enter your email"
-        placeholderTextColor={COLORS.textMuted}
-        value={form.email} onChangeText={set('email')}
-        keyboardType="email-address" autoCapitalize="none" />
+      <TextInput style={inp}
+        placeholder="Enter your email"
+        placeholderTextColor={C.muted}
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
 
-      <Text style={{ color: COLORS.text, fontWeight: '600', marginBottom: 8 }}>Password *</Text>
+      {/* Password */}
+      <Text style={{ color: C.text, fontWeight: '600', marginBottom: 8 }}>
+        Password *
+      </Text>
       <TextInput style={[inp, { marginBottom: 28 }]}
-        placeholder={mode === 'signup' ? 'Minimum 6 characters' : 'Enter your password'}
-        placeholderTextColor={COLORS.textMuted}
-        value={form.password} onChangeText={set('password')}
-        secureTextEntry autoCapitalize="none" />
+        placeholder={mode === 'signup' ? 'Minimum 6 characters' : 'Enter password'}
+        placeholderTextColor={C.muted}
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        autoCapitalize="none"
+      />
 
-      <TouchableOpacity onPress={handleSubmit} disabled={loading}
-        style={{ backgroundColor: loading ? COLORS.textMuted : COLORS.primary,
-          borderRadius: 16, padding: 18, alignItems: 'center' }}>
+      {/* Submit Button */}
+      <TouchableOpacity
+        onPress={submit}
+        disabled={loading}
+        style={{ backgroundColor: loading ? '#555' : C.primary,
+          borderRadius: 14, padding: 18, alignItems: 'center' }}
+      >
         {loading
           ? <ActivityIndicator color="#fff" size="large" />
           : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 17 }}>
               {mode === 'login' ? 'Login' : 'Create Account'}
-            </Text>}
+            </Text>
+        }
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}
-        style={{ alignItems: 'center', marginTop: 20, padding: 10 }}>
-        <Text style={{ color: COLORS.textMuted, fontSize: 14 }}>
+      {/* Toggle link */}
+      <TouchableOpacity
+        onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}
+        style={{ alignItems: 'center', marginTop: 20, padding: 10 }}
+      >
+        <Text style={{ color: C.muted, fontSize: 14 }}>
           {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
-          <Text style={{ color: COLORS.primary, fontWeight: '700' }}>
+          <Text style={{ color: C.primary, fontWeight: '700' }}>
             {mode === 'login' ? 'Register Now' : 'Login'}
           </Text>
         </Text>
