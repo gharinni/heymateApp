@@ -4,92 +4,101 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   ScrollView,
-  StyleSheet
+  StyleSheet,
+  Alert
 } from 'react-native';
 
-import { useNavigation } from '@react-navigation/native';
-import { useDispatch } from 'react-redux';
-import { setUser } from '../store/authSlice';
 import { authAPI } from '../api/auth.api';
 
-export default function LoginScreen() {
-  const navigation = useNavigation();
-  const dispatch = useDispatch();
+export default function LoginScreen({ navigation }) {
 
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     try {
-      setLoading(true);
+      if (!phone || !password) {
+        Alert.alert('Error', 'Enter all fields');
+        return;
+      }
 
-      const user = await authAPI.loginWithCredentials({
-        phone,
-        email,
-        password,
-      });
+      const user = await authAPI.login(phone, password);
 
-      dispatch(setUser(user));
+      if (user) {
+        navigation.replace('Dashboard');
+      }
 
-      navigation.replace('Dashboard');
-
-    } catch (error) {
-      console.log("ERROR:", error?.response?.data || error.message);
-      alert(error?.response?.data?.message || "Login failed");
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.log(err.response?.data || err.message);
+      Alert.alert('Login Failed', 'Check credentials or backend');
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+
       <Text style={styles.title}>HeyMate</Text>
 
       <TextInput
-        style={styles.input}
         placeholder="Phone"
+        style={styles.input}
         value={phone}
         onChangeText={setPhone}
       />
 
       <TextInput
-        style={styles.input}
-        placeholder="Email (optional)"
-        value={email}
-        onChangeText={setEmail}
-      />
-
-      <TextInput
-        style={styles.input}
         placeholder="Password"
         secureTextEntry
+        style={styles.input}
         value={password}
         onChangeText={setPassword}
       />
 
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        {loading ? <ActivityIndicator color="#fff" /> :
-          <Text style={styles.buttonText}>Login</Text>}
+        <Text style={styles.btnText}>Login</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-        <Text style={styles.register}>
-          Don't have an account? Register
+      {/* ❗ FIXED: Remove Register Navigation (no screen exists) */}
+      <TouchableOpacity>
+        <Text style={{ color: 'orange', marginTop: 20 }}>
+          Register feature coming soon
         </Text>
       </TouchableOpacity>
+
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: 'center', padding: 20, backgroundColor: '#0D0D1A' },
-  title: { fontSize: 30, color: '#FF5722', textAlign: 'center', marginBottom: 20 },
-  input: { backgroundColor: '#1E1E2F', color: '#fff', padding: 12, marginVertical: 10, borderRadius: 8 },
-  button: { backgroundColor: '#FF5722', padding: 15, borderRadius: 10, alignItems: 'center' },
-  buttonText: { color: '#fff', fontWeight: 'bold' },
-  register: { color: '#FF5722', textAlign: 'center', marginTop: 20 }
+  container: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: '#0D0D1A'
+  },
+  title: {
+    fontSize: 28,
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 30
+  },
+  input: {
+    backgroundColor: '#222',
+    padding: 12,
+    marginVertical: 10,
+    borderRadius: 8,
+    color: 'white'
+  },
+  button: {
+    backgroundColor: '#FF5722',
+    padding: 15,
+    borderRadius: 8,
+    marginTop: 10
+  },
+  btnText: {
+    textAlign: 'center',
+    color: 'white',
+    fontWeight: 'bold'
+  }
 });
