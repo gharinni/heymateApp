@@ -1,18 +1,27 @@
 import api from './index';
 
 export const providerAPI = {
+
+  // ✅ GET NEARBY PROVIDERS
   getNearby: (lat, lng, service, radius = 5) =>
-    api.get('/api/providers/nearby', { params: { lat, lng, service, radius } }),
+    api.get('/providers/nearby', {
+      params: { lat, lng, service, radius },
+    }),
 
+  // ✅ UPDATE LOCATION
   updateLocation: (lat, lng) =>
-    api.put('/api/providers/location', { lat, lng }),
+    api.put('/providers/location', { lat, lng }),
 
+  // ✅ TOGGLE ONLINE STATUS
   toggleOnline: (online) =>
-    api.put('/api/providers/online', { online }),
+    api.put('/providers/online', { online }),
 
+  // ✅ GET PROVIDER PROFILE
   getProfile: (id) =>
-    api.get(`/api/providers/${id}`),
+    api.get(`/providers/${id}`),
 
+  // ✅ GET PROVIDER STATS
   getStats: () =>
-    api.get('/api/providers/stats'),
+    api.get('/providers/stats'),
+
 };

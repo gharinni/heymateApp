@@ -1,7 +1,7 @@
 import api from './index';
 import { Platform } from 'react-native';
 
-// Storage handler
+// ── STORAGE ───────────────────────────────────────────
 const storage = {
   getItem: async (key) => {
     if (Platform.OS === 'web') return localStorage.getItem(key);
@@ -28,18 +28,13 @@ const storage = {
 
 export const authAPI = {
 
-  // ✅ LOGIN FIXED (NO DOUBLE /api)
   loginWithCredentials: async ({ phone, email, password }) => {
     const payload = { password };
 
     if (phone) payload.phone = phone.trim();
     if (email) payload.email = email.trim().toLowerCase();
 
-    console.log("LOGIN PAYLOAD:", payload);
-
     const res = await api.post('/auth/login', payload);
-
-    console.log("LOGIN RESPONSE:", res.data);
 
     const user = res.data;
 
@@ -56,7 +51,6 @@ export const authAPI = {
 
   getStoredUser: async () => {
     const u = await storage.getItem('user');
-    if (!u) return null;
-    return JSON.parse(u);
+    return u ? JSON.parse(u) : null;
   },
 };
