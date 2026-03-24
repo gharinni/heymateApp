@@ -4,7 +4,7 @@
     "slug": "heymate",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/heymate.jpeg",
     "userInterfaceStyle": "automatic",
     "platforms": ["ios", "android", "web"],
     "splash": {
@@ -13,7 +13,7 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/icon.png",
+      "favicon": "./heymate.jpeg",
       "name": "HeyMate",
       "shortName": "HeyMate",
       "description": "One App, Any Task, Any Time",
