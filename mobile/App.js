@@ -1,66 +1,56 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React, { useEffect, useState } from 'react';
+import { Platform, View, ActivityIndicator } from 'react-native';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
+import { StatusBar } from 'expo-status-bar';
+import { AppThemeProvider } from './src/context/AppThemeContext';
+import AppNavigator from './src/navigation/AppNavigator';
+import authReducer, { setUser } from './src/store/authSlice';
 
-// Screens (ONLY existing ones)
-import LoginScreen from './src/screens/LoginScreen';
-import HomeScreen from './src/screens/HomeScreen';
-import ProfileScreen from './src/screens/ProfileScreen';
-import EmergencyScreen from './src/screens/EmergencyScreen';
-import BookingScreen from './src/screens/BookingScreen';
-import BookingConfirmScreen from './src/screens/BookingConfirmScreen';
-import BookingStatusScreen from './src/screens/BookingStatusScreen';
-import PaymentScreen from './src/screens/PaymentScreen';
-import FeedbackScreen from './src/screens/FeedbackScreen';
-import HelpSupportScreen from './src/screens/HelpSupportScreen';
-import RateAppScreen from './src/screens/RateAppScreen';
-import RequestScreen from './src/screens/RequestScreen';
-import ServiceProvidersScreen from './src/screens/ServiceProvidersScreen';
-import NearbyMapScreen from './src/screens/NearbyMapScreen';
-import NearbySettingsScreen from './src/screens/NearbySettingsScreen';
-import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen';
-import ProviderDashboard from './src/screens/ProviderDashboard';
-import TrackingScreen from './src/screens/TrackingScreen';
+// ── Redux Store ───────────────────────────────────────────
+export const store = configureStore({
+  reducer: { auth: authReducer },
+  middleware: (g) => g({ serializableCheck: false }),
+});
 
-const Stack = createNativeStackNavigator();
+// ── Restore session ───────────────────────────────────────
+const getStoredUser = async () => {
+  try {
+    if (Platform.OS === 'web') {
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    }
+    const AS = (await import('@react-native-async-storage/async-storage')).default;
+    const u  = await AS.getItem('user');
+    return u ? JSON.parse(u) : null;
+  } catch { return null; }
+};
 
 export default function App() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    getStoredUser().then(user => {
+      if (user) {
+        user.role = (user.role || 'USER').toUpperCase();
+        store.dispatch(setUser(user));
+      }
+      setReady(true);
+    });
+  }, []);
+
+  if (!ready) return (
+    <View style={{ flex:1, backgroundColor:'#0D0D1A', alignItems:'center', justifyContent:'center' }}>
+      <ActivityIndicator size="large" color="#FF5722" />
+    </View>
+  );
+
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="Login">
-
-        {/* Auth */}
-        <Stack.Screen name="Login" component={LoginScreen} />
-
-        {/* Main */}
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Profile" component={ProfileScreen} />
-
-        {/* Service Flow */}
-        <Stack.Screen name="ServiceProviders" component={ServiceProvidersScreen} />
-        <Stack.Screen name="Request" component={RequestScreen} />
-        <Stack.Screen name="Booking" component={BookingScreen} />
-        <Stack.Screen name="BookingConfirm" component={BookingConfirmScreen} />
-        <Stack.Screen name="BookingStatus" component={BookingStatusScreen} />
-        <Stack.Screen name="Payment" component={PaymentScreen} />
-
-        {/* ✅ Tracking added */}
-        <Stack.Screen name="Tracking" component={TrackingScreen} />
-
-        <Stack.Screen name="Feedback" component={FeedbackScreen} />
-
-        {/* Extra */}
-        <Stack.Screen name="Emergency" component={EmergencyScreen} />
-        <Stack.Screen name="NearbyMap" component={NearbyMapScreen} />
-        <Stack.Screen name="NearbySettings" component={NearbySettingsScreen} />
-        <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
-        <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
-        <Stack.Screen name="RateApp" component={RateAppScreen} />
-
-        {/* Provider Dashboard (ONLY existing one) */}
-        <Stack.Screen name="ProviderDashboard" component={ProviderDashboard} />
-
-      </Stack.Navigator>
-    </NavigationContainer>
+    <Provider store={store}>
+      <AppThemeProvider>
+        <StatusBar style="light" />
+        <AppNavigator />
+      </AppThemeProvider>
+    </Provider>
   );
 }
