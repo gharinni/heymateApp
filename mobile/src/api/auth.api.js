@@ -1,4 +1,4 @@
-import api from './index';
+import api from './api_index';
 import { Platform } from 'react-native';
 
 // ── STORAGE ───────────────────────────────────────────
