@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, Alert, ActivityIndicator,
 } from 'react-native';
-import { bookingAPI } from '../api/booking.api';
+import { bookingAPI } from '../api/booking_api';
 import { COLORS } from '../constants';
 
 export default function BookingScreen({ route, navigation }) {

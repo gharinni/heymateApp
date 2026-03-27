@@ -8,7 +8,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { setUser, logout } from '../store/authSlice';
 import { useLocation } from '../hooks/useLocation';
 import { useAppTheme } from '../context/AppThemeContext';
-import api from '../api/index';
+import api from '../api/api_index';
 import { SERVICES } from '../constants';
 
 export default function ProfileScreen({ navigation }) {

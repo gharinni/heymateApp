@@ -10,7 +10,7 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector } from 'react-redux';
 import { useAppTheme } from '../context/AppThemeContext';
-import { API_URL } from '../api/index';
+import { API_URL } from '../api/api_index';
 import socket from '../services/socket';
 
 const CATEGORIES = [

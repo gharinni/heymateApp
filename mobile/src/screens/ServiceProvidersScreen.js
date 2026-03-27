@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useAppTheme } from '../context/AppThemeContext';
 import { useLocation } from '../hooks/useLocation';
-import { providerAPI } from '../api/provider.api';
+import { providerAPI } from '../api/provider_api';
 import { SERVICES } from '../constants';
 
 // ─── Rich mock data ────────────────────────────────────────────────────────────

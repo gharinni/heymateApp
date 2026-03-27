@@ -4,7 +4,7 @@ import {
   StyleSheet, TextInput, ActivityIndicator,
 } from 'react-native';
 import { useSelector } from 'react-redux';
-import { providerAPI } from '../api/provider.api';
+import { providerAPI } from '../api/provider_api';
 import { useLocation } from '../hooks/useLocation';
 import { useAppTheme } from '../context/AppThemeContext';
 import { SERVICES } from '../constants';
