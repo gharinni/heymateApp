@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { BASE_URL } from '../api/index';
+import { BASE_URL } from '../api/api_index';
 
 // Pure WebSocket (no STOMP) — works in Expo Go without native modules
 export function useWebSocket(bookingId, onLocationUpdate) {
