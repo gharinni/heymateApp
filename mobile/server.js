@@ -1,23 +1,26 @@
 const express = require('express');
-const path = require('path');
+const path    = require('path');
+const fs      = require('fs');
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// API test
-app.get('/health', (req, res) => {
-  res.json({ status: 'UP' });
-});
+// Serve static files from dist
+app.use(express.static(path.join(__dirname, 'dist')));
 
-// Serve frontend
-const distPath = path.join(__dirname, 'dist');
-app.use(express.static(distPath));
+// Health check
+app.get('/health', (req, res) => res.json({ status: 'UP' }));
 
-// React routing fix
-app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
+// Handle ALL routes — use app.use() NOT app.get('*')
+app.use((req, res) => {
+  const index = path.join(__dirname, 'dist', 'index.html');
+  if (fs.existsSync(index)) {
+    res.sendFile(index);
+  } else {
+    res.status(200).send('HeyMate is starting...');
+  }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ HeyMate running on port ${PORT}`);
 });
