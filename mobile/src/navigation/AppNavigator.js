@@ -5,7 +5,6 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSelector } from 'react-redux';
 
-// ── Screens ───────────────────────────────────────────────
 import LoginScreen                from '../screens/LoginScreen';
 import HomeScreen                 from '../screens/HomeScreen';
 import ProfileScreen              from '../screens/ProfileScreen';
@@ -14,7 +13,6 @@ import RequestScreen              from '../screens/RequestScreen';
 import ServiceProvidersScreen     from '../screens/ServiceProvidersScreen';
 import BookingConfirmScreen       from '../screens/BookingConfirmScreen';
 import BookingStatusScreen        from '../screens/BookingStatusScreen';
-import BookingScreen              from '../screens/BookingScreen';
 import TrackingScreen             from '../screens/TrackingScreen';
 import PaymentScreen              from '../screens/PaymentScreen';
 import FeedbackScreen             from '../screens/FeedbackScreen';
@@ -24,7 +22,6 @@ import ProviderDashboard          from '../screens/ProviderDashboard';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import HelpSupportScreen          from '../screens/HelpSupportScreen';
 import RateAppScreen              from '../screens/RateAppScreen';
-
 
 const Stack = createStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -52,7 +49,7 @@ function TIcon({ e, l, focused, color }) {
     <View style={{ alignItems:'center' }}>
       <Text style={{ fontSize: isWeb ? 18 : 22 }}>{e}</Text>
       {isWeb && (
-        <Text style={{ fontSize:10, color, fontWeight: focused ? '700':'400', marginTop:2 }}>
+        <Text style={{ fontSize:10, color, fontWeight:focused?'700':'400', marginTop:2 }}>
           {l}
         </Text>
       )}
@@ -80,10 +77,9 @@ function UserTabs() {
 function ProviderTabs() {
   return (
     <Tab.Navigator screenOptions={tabStyle}>
+      {/* ProviderDashboard used for both Dashboard and Jobs tabs */}
       <Tab.Screen name="ProviderDashboard" component={ProviderDashboard}
         options={{ tabBarIcon: p => <TIcon e="📊" l="Dashboard" {...p} />, tabBarLabel:'Dashboard' }} />
-      <Tab.Screen name="ProviderJobs"      component={ProviderScreen}
-        options={{ tabBarIcon: p => <TIcon e="🔧" l="Jobs"      {...p} />, tabBarLabel:'Jobs' }} />
       <Tab.Screen name="NearbyMap"         component={NearbyMapScreen}
         options={{ tabBarIcon: p => <TIcon e="🗺️" l="Nearby"   {...p} />, tabBarLabel:'Nearby' }} />
       <Tab.Screen name="Emergency"         component={EmergencyScreen}
@@ -121,7 +117,6 @@ function AllScreens() {
       <Stack.Screen name="NearbyMap"            component={NearbyMapScreen} />
       <Stack.Screen name="NearbySettings"       component={NearbySettingsScreen} />
       <Stack.Screen name="ServiceProviders"     component={ServiceProvidersScreen} />
-      <Stack.Screen name="Booking"              component={BookingScreen} />
       <Stack.Screen name="BookingConfirm"       component={BookingConfirmScreen} />
       <Stack.Screen name="BookingStatus"        component={BookingStatusScreen} />
       <Stack.Screen name="Tracking"             component={TrackingScreen} />
