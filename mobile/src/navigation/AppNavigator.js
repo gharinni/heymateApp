@@ -21,11 +21,10 @@ import FeedbackScreen             from '../screens/FeedbackScreen';
 import NearbyMapScreen            from '../screens/NearbyMapScreen';
 import NearbySettingsScreen       from '../screens/NearbySettingsScreen';
 import ProviderDashboard          from '../screens/ProviderDashboard';
-import ProviderScreen             from '../screens/ProviderScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import HelpSupportScreen          from '../screens/HelpSupportScreen';
 import RateAppScreen              from '../screens/RateAppScreen';
-import DashboardScreen            from '../screens/DashboardScreen';
+
 
 const Stack = createStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -115,7 +114,6 @@ function AllScreens() {
     <Stack.Navigator screenOptions={{ headerShown:false }} initialRouteName="Login">
       <Stack.Screen name="Login"                component={LoginScreen} />
       <Stack.Screen name="Main"                 component={isProvider ? ProviderTabs : UserTabs} />
-      <Stack.Screen name="Dashboard"            component={DashboardScreen} />
       <Stack.Screen name="Home"                 component={HomeScreen} />
       <Stack.Screen name="Request"              component={RequestScreen} />
       <Stack.Screen name="Profile"              component={ProfileScreen} />
@@ -129,7 +127,6 @@ function AllScreens() {
       <Stack.Screen name="Tracking"             component={TrackingScreen} />
       <Stack.Screen name="Payment"              component={PaymentScreen} />
       <Stack.Screen name="Feedback"             component={FeedbackScreen} />
-      <Stack.Screen name="ProviderScreen"       component={ProviderScreen} />
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
       <Stack.Screen name="HelpSupport"          component={HelpSupportScreen} />
       <Stack.Screen name="RateApp"              component={RateAppScreen} />
