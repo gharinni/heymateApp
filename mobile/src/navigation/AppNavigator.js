@@ -7,7 +7,6 @@ import { useSelector } from 'react-redux';
 
 // ── Screens ───────────────────────────────────────────────
 import LoginScreen                from '../screens/LoginScreen';
-import RegisterScreen             from '../screens/RegisterScreen';
 import HomeScreen                 from '../screens/HomeScreen';
 import ProfileScreen              from '../screens/ProfileScreen';
 import EmergencyScreen            from '../screens/EmergencyScreen';
@@ -115,7 +114,6 @@ function AllScreens() {
   return (
     <Stack.Navigator screenOptions={{ headerShown:false }} initialRouteName="Login">
       <Stack.Screen name="Login"                component={LoginScreen} />
-      <Stack.Screen name="Register"             component={RegisterScreen} />
       <Stack.Screen name="Main"                 component={isProvider ? ProviderTabs : UserTabs} />
       <Stack.Screen name="Dashboard"            component={DashboardScreen} />
       <Stack.Screen name="Home"                 component={HomeScreen} />
