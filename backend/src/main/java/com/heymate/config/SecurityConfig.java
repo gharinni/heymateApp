@@ -2,7 +2,6 @@ package com.heymate.config;
 
 import com.heymate.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -16,6 +15,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -26,20 +26,23 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
-    @Value("${app.frontend.url:https://heymateapp-production.up.railway.app}")
-    private String frontendUrl;
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
-            .csrf(c -> c.disable())
-            .cors(c -> c.configurationSource(corsConfigurationSource()))
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/emergency/**").permitAll()
-                .requestMatchers("/actuator/health").permitAll()
-                .requestMatchers("/ws/**").permitAll()
+                .requestMatchers(
+                    "/api/auth/**",
+                    "/api/auth/login",
+                    "/api/auth/register",
+                    "/actuator/**",
+                    "/actuator/health",
+                    "/ws/**",
+                    "/error"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
@@ -53,13 +56,15 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        var config = new CorsConfiguration();
+        CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of("*"));
-        config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
+        config.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(Arrays.asList("Authorization","Content-Type"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
-        var source = new UrlBasedCorsConfigurationSource();
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
     }
