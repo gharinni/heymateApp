@@ -3,8 +3,8 @@ import {
   View, Text, TouchableOpacity, TextInput,
   StyleSheet, Alert, ActivityIndicator,
 } from 'react-native';
-import api from '../api/api.index';
-import { COLORS } from '../constants/index';
+import api from '../api/index';
+import { COLORS } from '../constants';
 
 export default function FeedbackScreen({ route, navigation }) {
   const { booking } = route.params || {};

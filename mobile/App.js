@@ -1,8 +1,6 @@
 // HeyMate App - Complete Single File
 import React, { useEffect, useState } from 'react';
 import { Platform, View, ActivityIndicator, Text, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
-
-// ✅ FIXED: Provider added here
 import { Provider, useSelector, useDispatch } from 'react-redux';
 
 import { configureStore, createSlice } from '@reduxjs/toolkit';

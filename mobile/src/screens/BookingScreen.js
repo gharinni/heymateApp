@@ -4,7 +4,7 @@ import {
   ScrollView, StyleSheet, Alert, ActivityIndicator,
 } from 'react-native';
 import { bookingAPI } from '../api/booking.api';
-import { COLORS } from '../constants/index';
+import { COLORS } from '../constants';
 
 export default function BookingScreen({ route, navigation }) {
   const { provider } = route.params;

@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { emergencyAPI } from '../api/emergency.api';
 import { useLocation } from '../hooks/useLocation';
-import { COLORS, EMERGENCY_NUMBERS } from '../constants/index';
+import { COLORS, EMERGENCY_NUMBERS } from '../constants';
 
 export default function EmergencyScreen({ navigation }) {
   const { location, getLocation } = useLocation();
