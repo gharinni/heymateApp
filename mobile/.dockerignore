@@ -1,0 +1,10 @@
+node_modules
+.expo
+.git
+*.log
+dist
+.env
+.env.*
+!.env.template
+deploy/
+.github/
