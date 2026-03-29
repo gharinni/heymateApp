@@ -2,10 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Animated } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useLocation } from '../hooks/useLocation';
-import { providerAPI } from '../api/provider_api';
+import { providerAPI } from '../api/provider.api';
 import { useAppTheme } from '../context/AppThemeContext';
 import { buildInlineMapHTML } from '../utils/inlineMap';
-import { SERVICES } from '../constants';
+import { SERVICES } from '../constants/index';
 
 function getMockProviders(location) {
   if (!location) return [];

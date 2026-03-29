@@ -1,4 +1,4 @@
-import api from './api_index';
+import api from './api.index';
 
 export const bookingAPI = {
   create:             (data)       => api.post('/bookings', data),

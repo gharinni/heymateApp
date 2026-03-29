@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { bookingAPI } from '../api/booking_api';
+import { bookingAPI } from '../api/booking.api';
 import { useAppTheme } from '../context/AppThemeContext';
 import { buildInlineMapHTML } from '../utils/inlineMap';
 

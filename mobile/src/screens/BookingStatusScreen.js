@@ -4,7 +4,7 @@ import {
   ActivityIndicator, ScrollView, Alert,
 } from 'react-native';
 import { useAppTheme } from '../context/AppThemeContext';
-import { bookingAPI } from '../api/booking_api';
+import { bookingAPI } from '../api/booking.api';
 
 const STEPS = [
   { key: 'PENDING',     icon: '📤', label: 'Request Sent',     sub: 'Waiting for provider to accept' },

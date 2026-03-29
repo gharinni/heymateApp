@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Alert,
 } from 'react-native';
 import { useAppTheme } from '../context/AppThemeContext';
-import { bookingAPI } from '../api/booking_api';
+import { bookingAPI } from '../api/booking.api';
 
 export default function PaymentScreen({ route, navigation }) {
   const { booking } = route.params;

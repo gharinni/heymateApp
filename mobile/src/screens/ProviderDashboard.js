@@ -5,10 +5,10 @@ import {
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { setUser } from '../store/authSlice';
-import { bookingAPI } from '../api/booking_api';
-import { providerAPI } from '../api/provider_api';
+import { bookingAPI } from '../api/booking.api';
+import { providerAPI } from '../api/provider.api';
 import { useAppTheme } from '../context/AppThemeContext';
-import { AVAILABILITY, SERVICES } from '../constants';
+import { AVAILABILITY, SERVICES } from '../constants/index';
 
 export default function ProviderDashboard({ navigation }) {
   const dispatch = useDispatch();

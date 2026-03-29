@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { DARK_COLORS, LIGHT_COLORS } from '../constants';
+import { DARK_COLORS, LIGHT_COLORS } from '../constants/index';
 
 const ThemeContext = createContext();
 

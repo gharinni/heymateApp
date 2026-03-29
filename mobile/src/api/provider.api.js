@@ -1,4 +1,4 @@
-import api from './api_index';
+import api from './api.index';
 
 export const providerAPI = {
   getNearby:    (lat, lng, svc, radius) =>

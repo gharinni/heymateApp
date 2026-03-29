@@ -8,8 +8,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { setUser, logout } from '../store/authSlice';
 import { useLocation } from '../hooks/useLocation';
 import { useAppTheme } from '../context/AppThemeContext';
-import api from '../api/api_index';
-import { SERVICES } from '../constants';
+import api from '../api/api.index';
+import { SERVICES } from '../constants/index';
 
 export default function ProfileScreen({ navigation }) {
   const dispatch = useDispatch();

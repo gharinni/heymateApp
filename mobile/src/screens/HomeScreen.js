@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, TextInput, ActivityIndicator,
+  TextInput, ActivityIndicator,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { useLocation } from '../hooks/useLocation';
 import { useAppTheme } from '../context/AppThemeContext';
-import { SERVICES } from '../constants';
+import { SERVICES } from '../constants/index';
 
 export default function HomeScreen({ navigation }) {
   const { user } = useSelector((s) => s.auth);
