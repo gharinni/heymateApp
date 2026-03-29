@@ -1,214 +1,234 @@
-// HeyMate App - Stable Version (NO lazy loading)
-
+// HeyMate App - Complete Single File
 import React, { useEffect, useState } from 'react';
-import {
-  Platform,
-  View,
-  ActivityIndicator,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  Alert,
-} from 'react-native';
-
-import { Provider, useSelector, useDispatch } from 'react-redux';
+import { Platform, View, ActivityIndicator, Text, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+import { useSelector, useDispatch } from 'react-redux';
 import { configureStore, createSlice } from '@reduxjs/toolkit';
-
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
-// ✅ IMPORT SCREENS DIRECTLY (IMPORTANT)
-import HomeScreen from './src/screens/HomeScreen';
-import ProfileScreen from './src/screens/ProfileScreen';
-import EmergencyScreen from './src/screens/EmergencyScreen';
-import RequestScreen from './src/screens/RequestScreen';
-import ServiceProvidersScreen from './src/screens/ServiceProvidersScreen';
-import BookingConfirmScreen from './src/screens/BookingConfirmScreen';
-import BookingStatusScreen from './src/screens/BookingStatusScreen';
-import TrackingScreen from './src/screens/TrackingScreen';
-import PaymentScreen from './src/screens/PaymentScreen';
-import FeedbackScreen from './src/screens/FeedbackScreen';
-import NearbyMapScreen from './src/screens/NearbyMapScreen';
-import NearbySettingsScreen from './src/screens/NearbySettingsScreen';
-import ProviderDashboard from './src/screens/ProviderDashboard';
-import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen';
-import HelpSupportScreen from './src/screens/HelpSupportScreen';
-import RateAppScreen from './src/screens/RateAppScreen';
-
 const BACKEND = 'https://distinguished-elegance-production.up.railway.app/api';
 const isWeb = Platform.OS === 'web';
 
-
-// ================= REDUX =================
+// STORE
 const authSlice = createSlice({
   name: 'auth',
   initialState: { user: null, token: null },
   reducers: {
-    setUser: (s, a) => {
-      s.user = a.payload;
-      s.token = a.payload?.token || null;
-    },
-    logout: (s) => {
-      s.user = null;
-      s.token = null;
-    },
+    setUser: (s, a) => { s.user = a.payload; s.token = a.payload?.token || null; },
+    logout:  (s)    => { s.user = null; s.token = null; },
   },
 });
-
-const { setUser } = authSlice.actions;
-
+const { setUser, logout } = authSlice.actions;
 const store = configureStore({
   reducer: { auth: authSlice.reducer },
   middleware: g => g({ serializableCheck: false }),
 });
 
+// STORAGE
+const C = { bg:'#0D0D1A', card:'#1A1A2E', primary:'#FF5722', success:'#4CAF50', border:'#2A2A3E', text:'#FFFFFF', muted:'#9CA3AF', input:'#1E1E30' };
+const gv = async k => { try { return isWeb ? localStorage.getItem(k) : (await import('@react-native-async-storage/async-storage')).default.getItem(k); } catch { return null; } };
+const sv = async (k,v) => { try { isWeb ? localStorage.setItem(k,v) : (await import('@react-native-async-storage/async-storage')).default.setItem(k,v); } catch {} };
+const cl = async () => { try { isWeb ? localStorage.clear() : (await import('@react-native-async-storage/async-storage')).default.clear(); } catch {} };
 
-// ================= ERROR BOUNDARY =================
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: 'red', fontSize: 16 }}>
-            {this.state.error?.toString()}
-          </Text>
-        </View>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-
-// ================= LOGIN =================
+// LOGIN SCREEN - no external deps
 function LoginScreen({ navigation }) {
   const dispatch = useDispatch();
-
+  const [mode, setMode] = useState('login');
+  const [loading, setL] = useState(false);
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState('USER');
 
-  const login = async () => {
-    if (!phone || !pass) {
-      Alert.alert('Enter credentials');
-      return;
+  const submit = async () => {
+    if (mode === 'login') {
+      if (!phone.trim() && !email.trim()) { Alert.alert('Error', 'Enter phone or email'); return; }
+      if (!pass) { Alert.alert('Error', 'Enter password'); return; }
+    } else {
+      if (!name.trim()) { Alert.alert('Error', 'Enter name'); return; }
+      if (phone.length !== 10) { Alert.alert('Error', '10-digit phone'); return; }
+      if (pass.length < 6) { Alert.alert('Error', 'Password min 6 chars'); return; }
     }
-
-    setLoading(true);
-
+    setL(true);
     try {
-      const res = await fetch(`${BACKEND}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, password: pass }),
-      });
-
-      const data = await res.json();
-
-      if (data?.token) {
-        dispatch(setUser(data));
-        navigation.replace('Main');
+      const url = mode === 'login' ? `${BACKEND}/auth/login` : `${BACKEND}/auth/register`;
+      const body = mode === 'login'
+        ? (phone ? { phone: phone.trim(), password: pass } : { email: email.trim().toLowerCase(), password: pass })
+        : { name: name.trim(), phone: phone.trim(), email: email.trim().toLowerCase(), password: pass, role };
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 10000);
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal });
+      clearTimeout(t);
+      let data = {};
+      try { data = JSON.parse(await res.text()); } catch {}
+      const user = data?.token ? data : data?.data?.token ? data.data : null;
+      if (user?.token) {
+        user.role = (user.role || 'USER').toUpperCase();
+        await sv('token', user.token);
+        await sv('user', JSON.stringify(user));
+        dispatch(setUser(user));
+        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
       } else {
-        Alert.alert('Login failed');
+        Alert.alert('Failed', data?.message || data?.error || (res.status === 401 ? 'Wrong credentials' : `Error ${res.status}`));
       }
     } catch (e) {
-      Alert.alert('Network error');
-    }
-
-    setLoading(false);
+      Alert.alert('Error', e.name === 'AbortError' ? 'Timeout' : (e.message || 'Cannot connect'));
+    } finally { setL(false); }
   };
 
+  const inp = { borderWidth: 1.5, borderColor: C.border, borderRadius: 12, padding: 14, fontSize: 16, backgroundColor: C.input, color: '#fff', marginBottom: 14 };
   return (
-    <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
-      <TextInput placeholder="Phone" value={phone} onChangeText={setPhone} />
-      <TextInput placeholder="Password" value={pass} onChangeText={setPass} secureTextEntry />
-      <TouchableOpacity onPress={login}>
-        {loading ? <ActivityIndicator /> : <Text>Login</Text>}
+    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 24, paddingTop: 60 }} keyboardShouldPersistTaps="handled">
+      <View style={{ alignItems: 'center', marginBottom: 36 }}>
+        <Text style={{ fontSize: 54 }}>⚡</Text>
+        <Text style={{ fontSize: 36, fontWeight: '800', color: C.primary, marginTop: 8 }}>HeyMate</Text>
+        <Text style={{ color: C.muted, fontSize: 14, marginTop: 4 }}>One App · Any Task · Any Time</Text>
+      </View>
+      <View style={{ flexDirection: 'row', backgroundColor: C.card, borderRadius: 14, padding: 4, marginBottom: 24, borderWidth: 1, borderColor: C.border }}>
+        {[{ v: 'login', l: 'Login' }, { v: 'signup', l: 'Sign Up' }].map(m => (
+          <TouchableOpacity key={m.v} onPress={() => setMode(m.v)} style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', backgroundColor: mode === m.v ? C.primary : 'transparent' }}>
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{m.l}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {mode === 'signup' && <>
+        <Text style={{ color: C.text, fontWeight: '600', marginBottom: 8 }}>Full Name *</Text>
+        <TextInput style={inp} placeholder="Your name" placeholderTextColor={C.muted} value={name} onChangeText={setName} />
+        <Text style={{ color: C.text, fontWeight: '600', marginBottom: 8 }}>I am a *</Text>
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+          {[{ v: 'USER', l: '👤 Customer' }, { v: 'PROVIDER', l: '🔧 Provider' }].map(r => (
+            <TouchableOpacity key={r.v} onPress={() => setRole(r.v)} style={{ flex: 1, padding: 14, borderRadius: 12, alignItems: 'center', borderWidth: 2, borderColor: role === r.v ? C.success : C.border, backgroundColor: role === r.v ? '#0a2a0a' : C.card }}>
+              <Text style={{ color: role === r.v ? C.success : C.muted, fontWeight: '700' }}>{role === r.v ? '✓ ' : ''}{r.l}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </>}
+      <Text style={{ color: C.text, fontWeight: '600', marginBottom: 8 }}>Phone *</Text>
+      <TextInput style={inp} placeholder="10-digit phone" placeholderTextColor={C.muted} value={phone} onChangeText={t => setPhone(t.replace(/\D/g, '').slice(0, 10))} keyboardType="phone-pad" />
+      <Text style={{ color: C.text, fontWeight: '600', marginBottom: 8 }}>Email {mode === 'signup' ? '(optional)' : '(or phone)'}</Text>
+      <TextInput style={inp} placeholder="Email" placeholderTextColor={C.muted} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+      <Text style={{ color: C.text, fontWeight: '600', marginBottom: 8 }}>Password *</Text>
+      <TextInput style={[inp, { marginBottom: 28 }]} placeholder={mode === 'signup' ? 'Min 6 chars' : 'Password'} placeholderTextColor={C.muted} value={pass} onChangeText={setPass} secureTextEntry autoCapitalize="none" />
+      <TouchableOpacity onPress={submit} disabled={loading} style={{ backgroundColor: loading ? '#555' : C.primary, borderRadius: 14, padding: 18, alignItems: 'center' }}>
+        {loading ? <ActivityIndicator color="#fff" size="large" /> : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 17 }}>{mode === 'login' ? 'Login' : 'Create Account'}</Text>}
       </TouchableOpacity>
-    </View>
+      <TouchableOpacity onPress={() => setMode(mode === 'login' ? 'signup' : 'login')} style={{ alignItems: 'center', marginTop: 20, padding: 10 }}>
+        <Text style={{ color: C.muted }}>{mode === 'login' ? "No account? " : "Have account? "}<Text style={{ color: C.primary, fontWeight: '700' }}>{mode === 'login' ? 'Register' : 'Login'}</Text></Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
-
-// ================= NAVIGATION =================
+// NAVIGATION
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+const tabStyle = { headerShown: false, tabBarStyle: { backgroundColor: '#1A1A2E', borderTopColor: '#2A2A3E', height: isWeb ? 60 : 56 }, tabBarActiveTintColor: '#FF5722', tabBarInactiveTintColor: '#9CA3AF', tabBarShowLabel: !isWeb };
+const TI = ({ e, l, focused, color }) => (<View style={{ alignItems: 'center' }}><Text style={{ fontSize: isWeb ? 18 : 22 }}>{e}</Text>{isWeb && <Text style={{ fontSize: 10, color, fontWeight: focused ? '700' : '400', marginTop: 2 }}>{l}</Text>}</View>);
+
+// Lazy loader with error boundary
+const lazy = (loader) => {
+  let M = null;
+  return function S(props) {
+    const [Comp, setComp] = useState(M);
+    const [err, setErr] = useState(null);
+    useEffect(() => { if (!Comp) loader().then(m => { M = m.default; setComp(() => m.default); }).catch(e => setErr(e?.message || 'Error')); }, []);
+    if (err) return <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 20 }}><Text style={{ color: C.primary, fontSize: 16, textAlign: 'center' }}>{err}</Text></View>;
+    if (!Comp) return <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color="#FF5722" /></View>;
+    return <Comp {...props} />;
+  };
+};
+
+const HomeScreen = lazy(() => import('./src/screens/HomeScreen'));
+const ProfileScreen = lazy(() => import('./src/screens/ProfileScreen'));
+const EmergencyScreen = lazy(() => import('./src/screens/EmergencyScreen'));
+const RequestScreen = lazy(() => import('./src/screens/RequestScreen'));
+const ServiceProvidersScreen = lazy(() => import('./src/screens/ServiceProvidersScreen'));
+const BookingConfirmScreen = lazy(() => import('./src/screens/BookingConfirmScreen'));
+const BookingStatusScreen = lazy(() => import('./src/screens/BookingStatusScreen'));
+const TrackingScreen = lazy(() => import('./src/screens/TrackingScreen'));
+const PaymentScreen = lazy(() => import('./src/screens/PaymentScreen'));
+const FeedbackScreen = lazy(() => import('./src/screens/FeedbackScreen'));
+const NearbyMapScreen = lazy(() => import('./src/screens/NearbyMapScreen'));
+const NearbySettingsScreen = lazy(() => import('./src/screens/NearbySettingsScreen'));
+const ProviderDashboard = lazy(() => import('./src/screens/ProviderDashboard'));
+const NotificationSettingsScreen = lazy(() => import('./src/screens/NotificationSettingsScreen'));
+const HelpSupportScreen = lazy(() => import('./src/screens/HelpSupportScreen'));
+const RateAppScreen = lazy(() => import('./src/screens/RateAppScreen'));
 
 function UserTabs() {
-  return (
-    <Tab.Navigator>
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Request" component={RequestScreen} />
-      <Tab.Screen name="Nearby" component={NearbyMapScreen} />
-      <Tab.Screen name="Emergency" component={EmergencyScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
-    </Tab.Navigator>
-  );
+  return (<Tab.Navigator screenOptions={tabStyle}>
+    <Tab.Screen name="Home"      component={HomeScreen}      options={{ tabBarIcon: p => <TI e="🏠" l="Home"      {...p} />, tabBarLabel: 'Home' }} />
+    <Tab.Screen name="Request"   component={RequestScreen}   options={{ tabBarIcon: p => <TI e="📋" l="Requests"  {...p} />, tabBarLabel: 'Requests' }} />
+    <Tab.Screen name="NearbyMap" component={NearbyMapScreen} options={{ tabBarIcon: p => <TI e="🗺️" l="Nearby"   {...p} />, tabBarLabel: 'Nearby' }} />
+    <Tab.Screen name="Emergency" component={EmergencyScreen} options={{ tabBarIcon: p => <TI e="🚨" l="Emergency" {...p} />, tabBarLabel: 'Emergency' }} />
+    <Tab.Screen name="Profile"   component={ProfileScreen}   options={{ tabBarIcon: p => <TI e="👤" l="Profile"   {...p} />, tabBarLabel: 'Profile' }} />
+  </Tab.Navigator>);
 }
 
 function ProviderTabs() {
-  return (
-    <Tab.Navigator>
-      <Tab.Screen name="Dashboard" component={ProviderDashboard} />
-      <Tab.Screen name="Nearby" component={NearbyMapScreen} />
-      <Tab.Screen name="Emergency" component={EmergencyScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
-    </Tab.Navigator>
-  );
+  return (<Tab.Navigator screenOptions={tabStyle}>
+    <Tab.Screen name="ProviderDashboard" component={ProviderDashboard}  options={{ tabBarIcon: p => <TI e="📊" l="Dashboard" {...p} />, tabBarLabel: 'Dashboard' }} />
+    <Tab.Screen name="NearbyMap"         component={NearbyMapScreen}    options={{ tabBarIcon: p => <TI e="🗺️" l="Nearby"   {...p} />, tabBarLabel: 'Nearby' }} />
+    <Tab.Screen name="Emergency"         component={EmergencyScreen}    options={{ tabBarIcon: p => <TI e="🚨" l="Emergency" {...p} />, tabBarLabel: 'Emergency' }} />
+    <Tab.Screen name="Profile"           component={ProfileScreen}      options={{ tabBarIcon: p => <TI e="👤" l="Profile"   {...p} />, tabBarLabel: 'Profile' }} />
+  </Tab.Navigator>);
 }
-
 
 function AppScreens() {
   const user = useSelector(s => s.auth?.user);
-
-  console.log("USER:", user);
-
-  const isProvider = user?.role === 'PROVIDER';
-
+  const isProvider = user?.role?.toUpperCase() === 'PROVIDER';
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!user ? (
-        <Stack.Screen name="Login" component={LoginScreen} />
-      ) : (
-        <>
-          <Stack.Screen name="Main" component={isProvider ? ProviderTabs : UserTabs} />
-          <Stack.Screen name="ServiceProviders" component={ServiceProvidersScreen} />
-          <Stack.Screen name="BookingConfirm" component={BookingConfirmScreen} />
-          <Stack.Screen name="BookingStatus" component={BookingStatusScreen} />
-          <Stack.Screen name="Tracking" component={TrackingScreen} />
-          <Stack.Screen name="Payment" component={PaymentScreen} />
-          <Stack.Screen name="Feedback" component={FeedbackScreen} />
-          <Stack.Screen name="NearbySettings" component={NearbySettingsScreen} />
-          <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
-          <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
-          <Stack.Screen name="RateApp" component={RateAppScreen} />
-        </>
-      )}
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Login">
+      <Stack.Screen name="Login"                component={LoginScreen} />
+      <Stack.Screen name="Main"                 component={isProvider ? ProviderTabs : UserTabs} />
+      <Stack.Screen name="Home"                 component={HomeScreen} />
+      <Stack.Screen name="Request"              component={RequestScreen} />
+      <Stack.Screen name="Profile"              component={ProfileScreen} />
+      <Stack.Screen name="Emergency"            component={EmergencyScreen} />
+      <Stack.Screen name="NearbyMap"            component={NearbyMapScreen} />
+      <Stack.Screen name="NearbySettings"       component={NearbySettingsScreen} />
+      <Stack.Screen name="ServiceProviders"     component={ServiceProvidersScreen} />
+      <Stack.Screen name="BookingConfirm"       component={BookingConfirmScreen} />
+      <Stack.Screen name="BookingStatus"        component={BookingStatusScreen} />
+      <Stack.Screen name="Tracking"             component={TrackingScreen} />
+      <Stack.Screen name="Payment"              component={PaymentScreen} />
+      <Stack.Screen name="Feedback"             component={FeedbackScreen} />
+      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
+      <Stack.Screen name="HelpSupport"          component={HelpSupportScreen} />
+      <Stack.Screen name="RateApp"              component={RateAppScreen} />
+      <Stack.Screen name="BloodDonors"          component={EmergencyScreen} />
+      <Stack.Screen name="TrustedContacts"      component={EmergencyScreen} />
     </Stack.Navigator>
   );
 }
 
-
-// ================= ROOT =================
+// ROOT
 export default function App() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    gv('user').then(u => {
+      if (u) { try { const user = JSON.parse(u); user.role = (user.role || 'USER').toUpperCase(); store.dispatch(setUser(user)); } catch {} }
+      setReady(true);
+    }).catch(() => setReady(true));
+  }, []);
+
+  if (!ready) return (
+    <View style={{ flex: 1, backgroundColor: '#0D0D1A', alignItems: 'center', justifyContent: 'center' }}>
+      <ActivityIndicator size="large" color="#FF5722" />
+    </View>
+  );
+
   return (
     <Provider store={store}>
-      <ErrorBoundary>
-        <NavigationContainer>
-          <AppScreens />
-        </NavigationContainer>
-      </ErrorBoundary>
+      <View style={{ flex: 1, backgroundColor: isWeb ? '#000' : '#0D0D1A', alignItems: isWeb ? 'center' : 'stretch', justifyContent: isWeb ? 'center' : 'flex-start' }}>
+        <View style={{ width: isWeb ? 420 : '100%', maxWidth: '100%', height: '100%', flex: isWeb ? undefined : 1 }}>
+          <NavigationContainer>
+            <AppScreens />
+          </NavigationContainer>
+        </View>
+      </View>
     </Provider>
   );
 }
