@@ -1,11 +1,10 @@
 {
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm install --legacy-peer-deps && node node_modules/expo/bin/cli export --platform web --output-dir dist"
+    "buildCommand": "npm cache clean --force && npm install --legacy-peer-deps && node node_modules/expo/bin/cli export --platform web --output-dir dist"
   },
   "deploy": {
     "startCommand": "node server.js",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 3
+    "restartPolicyType": "ON_FAILURE"
   }
 }
