@@ -1,26 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Platform, View, ActivityIndicator, Text } from 'react-native';
 import { Provider } from 'react-redux';
-import { configureStore, createSlice } from '@reduxjs/toolkit';
 import { StatusBar } from 'expo-status-bar';
 
-// ── Store defined FIRST before anything else ─────────────
-const authSlice = createSlice({
-  name: 'auth',
-  initialState: { user: null, token: null },
-  reducers: {
-    setUser:  (s, a) => { s.user = a.payload; s.token = a.payload?.token || null; },
-    logout:   (s)    => { s.user = null; s.token = null; },
-  },
-});
-export const { setUser, logout } = authSlice.actions;
-export const store = configureStore({
-  reducer: { auth: authSlice.reducer },
-  middleware: g => g({ serializableCheck: false }),
-});
+// Import store FIRST - must happen before any component
+import { store, setUser } from './src/store/index';
 
-// ── Load stored session ───────────────────────────────────
-const loadUser = async () => {
+// Load stored user from device
+const loadStoredUser = async () => {
   try {
     if (Platform.OS === 'web') {
       const u = localStorage.getItem('user');
@@ -33,17 +20,20 @@ const loadUser = async () => {
 };
 
 // ── Root App ──────────────────────────────────────────────
+// Provider is the VERY FIRST thing rendered
 export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    loadUser().then(user => {
-      if (user) {
-        user.role = (user.role || 'USER').toUpperCase();
-        store.dispatch(setUser(user));
-      }
-      setReady(true);
-    }).catch(() => setReady(true));
+    loadStoredUser()
+      .then(user => {
+        if (user) {
+          user.role = (user.role || 'USER').toUpperCase();
+          store.dispatch(setUser(user));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setReady(true));
   }, []);
 
   if (!ready) return (
@@ -53,56 +43,59 @@ export default function App() {
     </View>
   );
 
-  // Provider wraps EVERYTHING — no component outside can use Redux
   return (
     <Provider store={store}>
-      <AppInner />
+      <StatusBar style="light" />
+      <AppBody />
     </Provider>
   );
 }
 
-// ── AppInner is inside Provider ───────────────────────────
-function AppInner() {
-  const [Comp, setComp]   = useState(null);
-  const [error, setError] = useState(null);
+// ── AppBody renders inside Provider ──────────────────────
+function AppBody() {
+  const [Screen, setScreen] = useState(null);
+  const [err, setErr]       = useState(null);
 
   useEffect(() => {
-    // Load theme + navigator lazily so crashes show error not blank
     Promise.all([
       import('./src/context/AppThemeContext'),
       import('./src/navigation/AppNavigator'),
-    ]).then(([theme, nav]) => {
-      const { AppThemeProvider } = theme;
-      const AppNavigator          = nav.default;
-      setComp(() => () => (
+    ])
+    .then(([themeModule, navModule]) => {
+      const { AppThemeProvider } = themeModule;
+      const AppNavigator          = navModule.default;
+      setScreen(() => () => (
         <AppThemeProvider>
-          <StatusBar style="light" />
           <AppNavigator />
         </AppThemeProvider>
       ));
-    }).catch(e => setError(e?.message || String(e)));
+    })
+    .catch(e => setErr(e?.message || 'Failed to load app'));
   }, []);
 
-  if (error) return (
+  if (err) return (
     <View style={{ flex:1, backgroundColor:'#0D0D1A',
       alignItems:'center', justifyContent:'center', padding:24 }}>
-      <Text style={{ fontSize:40 }}>⚡</Text>
-      <Text style={{ color:'#FF5722', fontSize:20, fontWeight:'800', marginTop:8 }}>
+      <Text style={{ fontSize:48 }}>⚡</Text>
+      <Text style={{ color:'#FF5722', fontSize:22, fontWeight:'800', marginTop:8 }}>
         HeyMate
       </Text>
-      <Text style={{ color:'#fff', fontSize:13, marginTop:16, textAlign:'center' }}>
-        {error}
+      <Text style={{ color:'#9CA3AF', fontSize:13, marginTop:16,
+        textAlign:'center', lineHeight:22 }}>
+        {err}
       </Text>
     </View>
   );
 
-  if (!Comp) return (
+  if (!Screen) return (
     <View style={{ flex:1, backgroundColor:'#0D0D1A',
       alignItems:'center', justifyContent:'center' }}>
       <ActivityIndicator size="large" color="#FF5722" />
-      <Text style={{ color:'#9CA3AF', marginTop:12 }}>Loading...</Text>
+      <Text style={{ color:'#9CA3AF', marginTop:14, fontSize:14 }}>
+        Loading HeyMate...
+      </Text>
     </View>
   );
 
-  return <Comp />;
+  return <Screen />;
 }
