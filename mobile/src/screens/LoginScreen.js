@@ -6,7 +6,7 @@ import {
 import { useDispatch } from 'react-redux';
 import { loginThunk, registerThunk } from '../store/authSlice';
 import { useAppTheme } from '../context/AppThemeContext';
-import { API_URL } from '../api/index';
+import { API_URL } from '../api/api.index';
 
 export default function LoginScreen({ navigation }) {
   const dispatch = useDispatch();

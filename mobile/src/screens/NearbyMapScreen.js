@@ -5,7 +5,7 @@ import { useLocation } from '../hooks/useLocation';
 import { providerAPI } from '../api/provider.api';
 import { useAppTheme } from '../context/AppThemeContext';
 import { buildInlineMapHTML } from '../utils/inlineMap';
-import { SERVICES } from '../constants';
+import { SERVICES } from '../constants/index';
 
 function getMockProviders(location) {
   if (!location) return [];
