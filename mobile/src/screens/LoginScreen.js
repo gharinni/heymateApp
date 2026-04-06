@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   Alert, ActivityIndicator, ScrollView,
-  Platform, KeyboardAvoidingView, Dimensions,
+  Platform, KeyboardAvoidingView,
   StyleSheet,
 } from 'react-native';
 
 const BACKEND = 'https://distinguished-elegance-production.up.railway.app/api';
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const C = {
   bg:'#0D0D1A', card:'#1A1A2E', primary:'#FF5722',
@@ -103,8 +102,8 @@ export default function LoginScreen({ navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.kav}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 20}
     >
       <ScrollView
         style={styles.scroll}
@@ -241,10 +240,10 @@ const styles = StyleSheet.create({
   kav:           { flex: 1, backgroundColor: C.bg },
   scroll:        { flex: 1 },
   content:       {
+    flexGrow: 1,
     padding: 24,
     paddingTop: 60,
-    paddingBottom: 80,          // keeps button above keyboard
-    minHeight: SCREEN_HEIGHT,   // prevents layout collapse
+    paddingBottom: 80,
   },
   logoBox:       { alignItems: 'center', marginBottom: 32 },
   logoEmoji:     { fontSize: 54 },
