@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   Alert, ActivityIndicator, ScrollView,
-  Platform, KeyboardAvoidingView,
-  StyleSheet,
+  Platform, KeyboardAvoidingView, Keyboard,
+  TouchableWithoutFeedback, StyleSheet,
 } from 'react-native';
 
 const BACKEND = 'https://distinguished-elegance-production.up.railway.app/api';
@@ -81,7 +81,11 @@ export default function LoginScreen({ navigation }) {
         user.role = (user.role || 'USER').toUpperCase();
         await sv('token', user.token);
         await sv('user', JSON.stringify(user));
-        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+        try {
+          navigation.replace('Main');
+        } catch {
+          navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+        }
       } else {
         Alert.alert(
           mode === 'login' ? 'Login Failed' : 'Registration Failed',
@@ -100,18 +104,20 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.kav}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 20}
-    >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        bounces={false}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <KeyboardAvoidingView
+        style={styles.kav}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 20}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
         {/* ── Logo ─────────────────────────────────────── */}
         <View style={styles.logoBox}>
           <Text style={styles.logoEmoji}>⚡</Text>
@@ -231,8 +237,9 @@ export default function LoginScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
 
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 
