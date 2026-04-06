@@ -1,336 +1,290 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator, ScrollView, Modal,
+  Alert, ActivityIndicator, ScrollView,
+  Platform, KeyboardAvoidingView, Dimensions,
+  StyleSheet,
 } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { loginThunk, registerThunk } from '../store/authSlice';
-import { useAppTheme } from '../context/AppThemeContext';
-import { API_URL } from '../api/api.index';
+
+const BACKEND = 'https://distinguished-elegance-production.up.railway.app/api';
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const C = {
+  bg:'#0D0D1A', card:'#1A1A2E', primary:'#FF5722',
+  success:'#4CAF50', border:'#2A2A3E',
+  text:'#FFFFFF', muted:'#9CA3AF', input:'#1E1E30',
+};
+
+const sv = async (k, v) => {
+  try {
+    if (Platform.OS === 'web') { localStorage.setItem(k, v); return; }
+    const A = (await import('@react-native-async-storage/async-storage')).default;
+    await A.setItem(k, v);
+  } catch {}
+};
 
 export default function LoginScreen({ navigation }) {
-  const dispatch = useDispatch();
-  const { colors: c, isDark } = useAppTheme();
-
-  const [mode, setMode]       = useState('login');   // login | signup
-  const [role, setRole]       = useState('USER');
-  const [loginMode, setLoginMode] = useState('phone'); // phone | email
-  const [loading, setLoading] = useState(false);
-  const [form, setForm]       = useState({ name:'', phone:'', email:'', password:'', serviceType:'', pricePerUnit:'', description:'' });
-  const [showPass, setShowPass] = useState(false);
-
-  // Forgot password
-  const [forgotModal, setForgotModal]   = useState(false);
-  const [forgotStep, setForgotStep]     = useState(1);
-  const [forgotEmail, setForgotEmail]   = useState('');
-  const [otp, setOtp]                   = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('');
-  const [newPass, setNewPass]           = useState('');
-  const [confirmPass, setConfirmPass]   = useState('');
-  const [forgotLoading, setForgotLoading] = useState(false);
-
-  const set = k => v => setForm(f => ({ ...f, [k]: v }));
+  const [mode, setMode]   = useState('login');
+  const [loading, setL]   = useState(false);
+  const [name, setName]   = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [pass, setPass]   = useState('');
+  const [role, setRole]   = useState('USER');
 
   const submit = async () => {
-    setLoading(true);
+    // Validation
+    if (mode === 'login') {
+      if (!phone.trim() && !email.trim()) {
+        Alert.alert('Error', 'Enter phone or email'); return;
+      }
+      if (!pass) { Alert.alert('Error', 'Enter password'); return; }
+    } else {
+      if (!name.trim()) { Alert.alert('Error', 'Enter name'); return; }
+      if (phone.length !== 10) { Alert.alert('Error', '10-digit phone required'); return; }
+      if (pass.length < 6) { Alert.alert('Error', 'Password min 6 chars'); return; }
+    }
+
+    setL(true);
     try {
-      if (mode === 'login') {
-        const credentials = loginMode === 'phone'
-          ? { phone: form.phone, password: form.password }
-          : { email: form.email.trim().toLowerCase(), password: form.password };
-        const res = await dispatch(loginThunk(credentials)).unwrap();
-        if (!res?.token) Alert.alert('Login Failed', 'Check your credentials.');
+      const url  = mode === 'login'
+        ? `${BACKEND}/auth/login`
+        : `${BACKEND}/auth/register`;
+
+      const body = mode === 'login'
+        ? (phone.trim()
+            ? { phone: phone.trim(), password: pass }
+            : { email: email.trim().toLowerCase(), password: pass })
+        : {
+            name: name.trim(),
+            phone: phone.trim(),
+            email: email.trim().toLowerCase(),
+            password: pass,
+            role,
+          };
+
+      const ctrl = new AbortController();
+      const t    = setTimeout(() => ctrl.abort(), 10000);
+      const res  = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+
+      let data = {};
+      try { data = JSON.parse(await res.text()); } catch {}
+
+      const user = data?.token ? data : data?.data?.token ? data.data : null;
+
+      if (user?.token) {
+        user.role = (user.role || 'USER').toUpperCase();
+        await sv('token', user.token);
+        await sv('user', JSON.stringify(user));
+        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
       } else {
-        if (!form.name.trim())     { Alert.alert('Error','Enter your name'); return; }
-        if (form.phone.length!==10){ Alert.alert('Error','Enter 10-digit phone'); return; }
-        if (!form.password||form.password.length<6){ Alert.alert('Error','Password min 6 chars'); return; }
-        await dispatch(registerThunk({ ...form, role })).unwrap();
+        Alert.alert(
+          mode === 'login' ? 'Login Failed' : 'Registration Failed',
+          data?.message || data?.error
+            || (res.status === 401 ? 'Wrong credentials'
+              : res.status === 409 ? 'Phone already registered'
+              : `Error ${res.status}`)
+        );
       }
     } catch (e) {
-      const msg = e?.message || String(e);
-      if (msg.includes('Network')||msg.includes('ECONNREFUSED')) {
-        Alert.alert('Cannot Connect','Check internet or backend.\n'+msg);
-      } else {
-        Alert.alert(mode==='login'?'Login Failed':'Registration Failed', msg);
-      }
-    } finally { setLoading(false); }
+      Alert.alert(
+        'Error',
+        e.name === 'AbortError' ? 'Timeout - try again' : (e.message || 'Cannot connect')
+      );
+    } finally { setL(false); }
   };
-
-  const sendOtp = async () => {
-    if (!forgotEmail.trim()) { Alert.alert('Error','Enter email'); return; }
-    setForgotLoading(true);
-    try {
-      const res  = await fetch(`${API_URL}/auth/forgot-password`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ email: forgotEmail.trim().toLowerCase() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setGeneratedOtp(data.otp||'');
-        setForgotStep(2);
-        Alert.alert('✅ OTP Sent!', data.otp ? `OTP: ${data.otp} (dev mode)` : 'Check your email.');
-      } else Alert.alert('Error', data.message||'Email not found');
-    } catch { Alert.alert('Error','Cannot connect'); }
-    finally { setForgotLoading(false); }
-  };
-
-  const verifyOtp = () => {
-    if (!otp.trim()) { Alert.alert('Error','Enter OTP'); return; }
-    if (otp.trim()!==generatedOtp.trim()&&otp.trim().length!==6) {
-      Alert.alert('Invalid OTP','Check and try again.'); return;
-    }
-    setForgotStep(3);
-  };
-
-  const resetPassword = async () => {
-    if (!newPass||newPass.length<6) { Alert.alert('Error','Min 6 chars'); return; }
-    if (newPass!==confirmPass)      { Alert.alert('Error','Passwords don\'t match'); return; }
-    setForgotLoading(true);
-    try {
-      const res  = await fetch(`${API_URL}/auth/reset-password`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ email: forgotEmail.trim().toLowerCase(), otp: otp.trim(), password: newPass }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setForgotModal(false); setForgotStep(1);
-        setForgotEmail(''); setOtp(''); setNewPass(''); setConfirmPass('');
-        Alert.alert('✅ Password Reset!','Login with your new password.');
-      } else Alert.alert('Error', data.message||'Reset failed');
-    } catch { Alert.alert('Error','Cannot connect'); }
-    finally { setForgotLoading(false); }
-  };
-
-  const closeForgot = () => {
-    setForgotModal(false); setForgotStep(1);
-    setForgotEmail(''); setOtp(''); setNewPass(''); setConfirmPass('');
-  };
-
-  const inp = [
-    { borderWidth:1.5, borderColor:c.border, borderRadius:12, padding:14,
-      fontSize:15, backgroundColor:c.card, marginBottom:14, color:c.text }
-  ];
 
   return (
-    <ScrollView style={{ flex:1, backgroundColor:c.bg }} keyboardShouldPersistTaps="handled">
-      <View style={{ padding:24, paddingTop:70 }}>
-
-        {/* Logo */}
-        <View style={{ alignItems:'center', marginBottom:36 }}>
-          <View style={{ width:72, height:72, borderRadius:20, backgroundColor:c.primary, alignItems:'center', justifyContent:'center', marginBottom:12 }}>
-            <Text style={{ fontSize:36 }}>⚡</Text>
-          </View>
-          <Text style={{ fontSize:32, fontWeight:'800', color:c.text }}>
-            Hey<Text style={{ color:c.primary }}>Mate</Text>
-          </Text>
-          <Text style={{ color:c.textMuted, fontSize:13, marginTop:4 }}>One App · Any Task · Any Time</Text>
+    <KeyboardAvoidingView
+      style={styles.kav}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+    >
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {/* ── Logo ─────────────────────────────────────── */}
+        <View style={styles.logoBox}>
+          <Text style={styles.logoEmoji}>⚡</Text>
+          <Text style={styles.logoText}>HeyMate</Text>
+          <Text style={styles.logoSub}>One App · Any Task · Any Time</Text>
         </View>
 
-        {/* Mode tabs */}
-        <View style={{ flexDirection:'row', backgroundColor:c.card, borderRadius:14, padding:4, marginBottom:14, borderWidth:1, borderColor:c.border }}>
-          {['login','signup'].map(m => (
-            <TouchableOpacity key={m} onPress={() => setMode(m)}
-              style={{ flex:1, padding:10, borderRadius:10, alignItems:'center', backgroundColor:mode===m?c.primary:'transparent' }}>
-              <Text style={{ color:mode===m?'#fff':c.textMuted, fontWeight:'700', fontSize:13 }}>
-                {m==='login'?'🔑 Login':'✍️ Sign Up'}
-              </Text>
+        {/* ── Toggle ───────────────────────────────────── */}
+        <View style={styles.toggle}>
+          {[{ v: 'login', l: 'Login' }, { v: 'signup', l: 'Sign Up' }].map(m => (
+            <TouchableOpacity
+              key={m.v}
+              onPress={() => setMode(m.v)}
+              style={[styles.toggleBtn, mode === m.v && styles.toggleActive]}
+            >
+              <Text style={styles.toggleText}>{m.l}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Role toggle (signup only) */}
-        {mode==='signup' && (
-          <View style={{ flexDirection:'row', backgroundColor:c.card, borderRadius:14, padding:4, marginBottom:14, borderWidth:1, borderColor:c.border }}>
-            {[{v:'USER',label:'👤 User'},{v:'PROVIDER',label:'🧰 Provider'}].map(r => (
-              <TouchableOpacity key={r.v} onPress={() => setRole(r.v)}
-                style={{ flex:1, padding:10, borderRadius:10, alignItems:'center', backgroundColor:role===r.v?c.success:'transparent' }}>
-                <Text style={{ color:role===r.v?'#fff':c.textMuted, fontWeight:'700', fontSize:13 }}>{r.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+        {/* ── Sign Up Only ──────────────────────────────── */}
+        {mode === 'signup' && (
+          <>
+            <Text style={styles.label}>Full Name *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your full name"
+              placeholderTextColor={C.muted}
+              value={name}
+              onChangeText={setName}
+              returnKeyType="next"
+            />
 
-        {/* Login mode toggle */}
-        {mode==='login' && (
-          <View style={{ flexDirection:'row', gap:8, marginBottom:14 }}>
-            {['phone','email'].map(lm => (
-              <TouchableOpacity key={lm} onPress={() => setLoginMode(lm)}
-                style={{ flex:1, padding:10, borderRadius:12, borderWidth:1.5, alignItems:'center',
-                  borderColor:loginMode===lm?c.primary:c.border,
-                  backgroundColor:loginMode===lm?`${c.primary}18`:c.card }}>
-                <Text style={{ color:loginMode===lm?c.primary:c.textMuted, fontWeight:'600', fontSize:13 }}>
-                  {lm==='phone'?'📱 Phone':'📧 Email'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Name (signup) */}
-        {mode==='signup' && (
-          <TextInput style={inp[0]} placeholder="Full Name" placeholderTextColor={c.textMuted}
-            value={form.name} onChangeText={set('name')} autoCapitalize="words" />
-        )}
-
-        {/* Phone / Email */}
-        {(mode==='signup'||loginMode==='phone') ? (
-          <View style={{ flexDirection:'row', gap:10, marginBottom:14 }}>
-            <View style={{ flexDirection:'row', alignItems:'center', backgroundColor:c.card, borderRadius:12, borderWidth:1.5, borderColor:c.border, paddingHorizontal:12 }}>
-              <Text style={{ fontSize:18 }}>🇮🇳</Text>
-              <Text style={{ color:c.text, fontWeight:'600', marginLeft:4 }}>+91</Text>
+            <Text style={styles.label}>I am a *</Text>
+            <View style={styles.roleRow}>
+              {[{ v: 'USER', l: '👤 Customer' }, { v: 'PROVIDER', l: '🔧 Provider' }].map(r => (
+                <TouchableOpacity
+                  key={r.v}
+                  onPress={() => setRole(r.v)}
+                  style={[styles.roleBtn, role === r.v && styles.roleBtnActive]}
+                >
+                  <Text style={[styles.roleTxt, role === r.v && styles.roleTxtActive]}>
+                    {role === r.v ? '✓ ' : ''}{r.l}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-            <TextInput style={[inp[0],{flex:1,marginBottom:0}]} placeholder="10-digit phone"
-              placeholderTextColor={c.textMuted} value={form.phone}
-              onChangeText={t => set('phone')(t.replace(/\D/g,'').slice(0,10))}
-              keyboardType="phone-pad" />
-          </View>
-        ) : (
-          <TextInput style={inp[0]} placeholder="Email address" placeholderTextColor={c.textMuted}
-            value={form.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" />
+          </>
         )}
 
-        {/* Email for signup */}
-        {mode==='signup' && (
-          <TextInput style={inp[0]} placeholder="Email (optional)" placeholderTextColor={c.textMuted}
-            value={form.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" />
-        )}
+        {/* ── Phone ────────────────────────────────────── */}
+        <Text style={styles.label}>Phone Number *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="10-digit phone number"
+          placeholderTextColor={C.muted}
+          value={phone}
+          onChangeText={t => setPhone(t.replace(/\D/g, '').slice(0, 10))}
+          keyboardType="phone-pad"
+          maxLength={10}
+          returnKeyType="next"
+        />
 
-        {/* Password */}
-        <View style={{ flexDirection:'row', alignItems:'center', gap:8, marginBottom:14 }}>
-          <TextInput style={[inp[0],{flex:1,marginBottom:0}]} placeholder="Password"
-            placeholderTextColor={c.textMuted} value={form.password} onChangeText={set('password')}
-            secureTextEntry={!showPass} autoCapitalize="none" />
-          <TouchableOpacity onPress={() => setShowPass(!showPass)} style={{ padding:8 }}>
-            <Text style={{ fontSize:20 }}>{showPass?'🙈':'👁️'}</Text>
-          </TouchableOpacity>
-        </View>
+        {/* ── Email ────────────────────────────────────── */}
+        <Text style={styles.label}>
+          Email {mode === 'signup' ? '(optional)' : '(or use phone above)'}
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter your email"
+          placeholderTextColor={C.muted}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          returnKeyType="next"
+        />
 
-        {/* Provider fields */}
-        {mode==='signup' && role==='PROVIDER' && (
-          <View style={{ backgroundColor:`${c.primary}10`, borderRadius:14, padding:14, marginBottom:14, borderWidth:1, borderColor:`${c.primary}33` }}>
-            <Text style={{ color:c.primary, fontWeight:'700', marginBottom:10 }}>🔧 Provider Details</Text>
-            <TextInput style={inp[0]} placeholder="Service Type (e.g. Plumber)"
-              placeholderTextColor={c.textMuted} value={form.serviceType} onChangeText={set('serviceType')} />
-            <TextInput style={[inp[0],{height:80}]} placeholder="Description (optional)"
-              placeholderTextColor={c.textMuted} value={form.description} onChangeText={set('description')} multiline />
-            <TextInput style={inp[0]} placeholder="Price per unit (e.g. ₹300/visit)"
-              placeholderTextColor={c.textMuted} value={form.pricePerUnit} onChangeText={set('pricePerUnit')} />
-          </View>
-        )}
+        {/* ── Password ─────────────────────────────────── */}
+        <Text style={styles.label}>Password *</Text>
+        <TextInput
+          style={[styles.input, { marginBottom: 32 }]}
+          placeholder={mode === 'signup' ? 'Minimum 6 characters' : 'Enter your password'}
+          placeholderTextColor={C.muted}
+          value={pass}
+          onChangeText={setPass}
+          secureTextEntry
+          autoCapitalize="none"
+          returnKeyType="done"
+          onSubmitEditing={submit}
+        />
 
-        {/* Forgot password */}
-        {mode==='login' && (
-          <TouchableOpacity onPress={() => setForgotModal(true)} style={{ alignSelf:'flex-end', marginBottom:16 }}>
-            <Text style={{ color:c.primary, fontWeight:'600', fontSize:13 }}>🔑 Forgot Password?</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Submit */}
-        <TouchableOpacity onPress={submit} disabled={loading}
-          style={{ backgroundColor:c.primary, borderRadius:14, padding:16, alignItems:'center', opacity:loading?0.7:1 }}>
-          {loading ? <ActivityIndicator color="#fff" />
-            : <Text style={{ color:'#fff', fontWeight:'800', fontSize:16 }}>
-                {mode==='login'?'🚀 Login':'✅ Create Account'}
+        {/* ── Submit Button ─────────────────────────────── */}
+        <TouchableOpacity
+          onPress={submit}
+          disabled={loading}
+          activeOpacity={0.85}
+          style={[styles.btn, loading && styles.btnDisabled]}
+        >
+          {loading
+            ? <ActivityIndicator color="#fff" size="large" />
+            : <Text style={styles.btnText}>
+                {mode === 'login' ? '🚀 Login' : '✅ Create Account'}
               </Text>}
         </TouchableOpacity>
 
-        {/* Switch mode link */}
-        <TouchableOpacity onPress={() => setMode(mode==='login'?'signup':'login')}
-          style={{ flexDirection:'row', justifyContent:'center', marginTop:20 }}>
-          <Text style={{ color:c.textMuted }}>
-            {mode==='login'?"Don't have an account? ":"Already have an account? "}
-          </Text>
-          <Text style={{ color:c.primary, fontWeight:'700' }}>
-            {mode==='login'?'Register Now':'Login'}
+        {/* ── Switch Mode ──────────────────────────────── */}
+        <TouchableOpacity
+          onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}
+          style={styles.switchRow}
+        >
+          <Text style={styles.switchTxt}>
+            {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
+            <Text style={styles.switchLink}>
+              {mode === 'login' ? 'Register Now' : 'Login'}
+            </Text>
           </Text>
         </TouchableOpacity>
-      </View>
 
-      {/* ── Forgot Password Modal ── */}
-      <Modal visible={forgotModal} animationType="slide" transparent onRequestClose={closeForgot}>
-        <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.6)', justifyContent:'flex-end' }}>
-          <View style={{ backgroundColor:c.card, borderTopLeftRadius:26, borderTopRightRadius:26, padding:24, paddingBottom:40, borderTopWidth:1, borderTopColor:c.border }}>
-
-            <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20 }}>
-              <View>
-                <Text style={{ color:c.text, fontSize:22, fontWeight:'800' }}>🔑 Forgot Password</Text>
-                <Text style={{ color:c.textMuted, fontSize:13, marginTop:4 }}>
-                  {forgotStep===1?'Enter registered email':forgotStep===2?'Enter OTP':'Set new password'}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={closeForgot}>
-                <Text style={{ fontSize:26, color:c.textMuted }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Step indicators */}
-            <View style={{ flexDirection:'row', justifyContent:'center', alignItems:'center', marginBottom:20, gap:6 }}>
-              {[1,2,3].map(n => (
-                <View key={n} style={{ flexDirection:'row', alignItems:'center' }}>
-                  <View style={{ width:32, height:32, borderRadius:16, alignItems:'center', justifyContent:'center',
-                    backgroundColor:forgotStep>=n?c.primary:c.border }}>
-                    <Text style={{ color:'#fff', fontWeight:'800', fontSize:13 }}>{n}</Text>
-                  </View>
-                  {n<3&&<View style={{ width:40, height:2, backgroundColor:forgotStep>n?c.primary:c.border, marginHorizontal:4 }} />}
-                </View>
-              ))}
-            </View>
-
-            {/* Step 1 */}
-            {forgotStep===1 && (
-              <View>
-                <Text style={{ color:c.text, fontWeight:'600', marginBottom:8 }}>Registered Email</Text>
-                <TextInput style={inp[0]} placeholder="Enter email" placeholderTextColor={c.textMuted}
-                  value={forgotEmail} onChangeText={setForgotEmail} keyboardType="email-address" autoCapitalize="none" />
-                <TouchableOpacity onPress={sendOtp} disabled={forgotLoading}
-                  style={{ backgroundColor:c.primary, borderRadius:14, padding:16, alignItems:'center', opacity:forgotLoading?0.7:1 }}>
-                  {forgotLoading ? <ActivityIndicator color="#fff" />
-                    : <Text style={{ color:'#fff', fontWeight:'700' }}>📨 Send OTP</Text>}
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Step 2 */}
-            {forgotStep===2 && (
-              <View>
-                <View style={{ backgroundColor:`${c.primary}15`, borderRadius:12, padding:12, marginBottom:14 }}>
-                  <Text style={{ color:c.primary, fontSize:13 }}>✉️ OTP sent to {forgotEmail}</Text>
-                </View>
-                <Text style={{ color:c.text, fontWeight:'600', marginBottom:8 }}>Enter 6-digit OTP</Text>
-                <TextInput style={[inp[0],{fontSize:28, letterSpacing:10, textAlign:'center', fontWeight:'800'}]}
-                  placeholder="------" placeholderTextColor={c.border}
-                  value={otp} onChangeText={t => setOtp(t.replace(/\D/g,'').slice(0,6))} keyboardType="number-pad" />
-                <TouchableOpacity onPress={verifyOtp}
-                  style={{ backgroundColor:c.primary, borderRadius:14, padding:16, alignItems:'center' }}>
-                  <Text style={{ color:'#fff', fontWeight:'700' }}>✅ Verify OTP</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={sendOtp} style={{ alignItems:'center', padding:12 }}>
-                  <Text style={{ color:c.primary, fontWeight:'600' }}>Resend OTP</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Step 3 */}
-            {forgotStep===3 && (
-              <View>
-                <Text style={{ color:c.text, fontWeight:'600', marginBottom:8 }}>New Password</Text>
-                <TextInput style={inp[0]} placeholder="Min 6 characters" placeholderTextColor={c.textMuted}
-                  value={newPass} onChangeText={setNewPass} secureTextEntry />
-                <Text style={{ color:c.text, fontWeight:'600', marginBottom:8 }}>Confirm New Password</Text>
-                <TextInput style={[inp[0], confirmPass&&newPass!==confirmPass&&{borderColor:'#EF4444'}, confirmPass&&newPass===confirmPass&&{borderColor:c.success}]}
-                  placeholder="Re-enter password" placeholderTextColor={c.textMuted}
-                  value={confirmPass} onChangeText={setConfirmPass} secureTextEntry />
-                {confirmPass&&newPass===confirmPass&&<Text style={{ color:c.success, fontSize:12, marginBottom:8 }}>✅ Passwords match</Text>}
-                <TouchableOpacity onPress={resetPassword} disabled={forgotLoading}
-                  style={{ backgroundColor:c.success, borderRadius:14, padding:16, alignItems:'center', opacity:forgotLoading?0.7:1 }}>
-                  {forgotLoading ? <ActivityIndicator color="#fff" />
-                    : <Text style={{ color:'#fff', fontWeight:'700' }}>🔐 Reset Password</Text>}
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </View>
-      </Modal>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  kav:           { flex: 1, backgroundColor: C.bg },
+  scroll:        { flex: 1 },
+  content:       {
+    padding: 24,
+    paddingTop: 60,
+    paddingBottom: 80,          // keeps button above keyboard
+    minHeight: SCREEN_HEIGHT,   // prevents layout collapse
+  },
+  logoBox:       { alignItems: 'center', marginBottom: 32 },
+  logoEmoji:     { fontSize: 54 },
+  logoText:      { fontSize: 34, fontWeight: '800', color: C.primary, marginTop: 8 },
+  logoSub:       { color: C.muted, fontSize: 14, marginTop: 4 },
+  toggle:        { flexDirection: 'row', backgroundColor: C.card, borderRadius: 14, padding: 4, marginBottom: 24, borderWidth: 1, borderColor: C.border },
+  toggleBtn:     { flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center' },
+  toggleActive:  { backgroundColor: C.primary },
+  toggleText:    { color: '#fff', fontWeight: '700', fontSize: 15 },
+  label:         { color: C.text, fontWeight: '600', fontSize: 14, marginBottom: 8 },
+  input:         {
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    backgroundColor: C.input,
+    color: '#FFFFFF',
+    marginBottom: 14,
+  },
+  roleRow:       { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  roleBtn:       { flex: 1, padding: 14, borderRadius: 12, alignItems: 'center', borderWidth: 2, borderColor: C.border, backgroundColor: C.card },
+  roleBtnActive: { borderColor: C.success, backgroundColor: '#0a2a0a' },
+  roleTxt:       { color: C.muted, fontWeight: '700', fontSize: 14 },
+  roleTxtActive: { color: C.success },
+  btn:           {
+    backgroundColor: C.primary,
+    borderRadius: 16,
+    padding: 18,
+    alignItems: 'center',
+    marginBottom: 20,
+    elevation: 6,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+  },
+  btnDisabled:   { backgroundColor: '#555' },
+  btnText:       { color: '#fff', fontWeight: '800', fontSize: 17 },
+  switchRow:     { alignItems: 'center', padding: 10 },
+  switchTxt:     { color: C.muted, fontSize: 14 },
+  switchLink:    { color: C.primary, fontWeight: '700' },
+});
